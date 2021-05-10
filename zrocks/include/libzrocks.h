@@ -23,6 +23,7 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
 #include <stdlib.h>
 
 #define ZNS_ALIGMENT 4096

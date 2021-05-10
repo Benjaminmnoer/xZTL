@@ -21,9 +21,13 @@
 #include <xztl-media.h>
 #include <ztl-media.h>
 #include <libxnvme.h>
+#include <libxnvme_pp.h>
+#include <libxnvme_nvm.h>
+#include <libxnvme_znd.h>
+#include <xnvme_be.h>
+#include <xnvme_queue.h>
 #include <time.h>
 #include <unistd.h>
-#include <libznd.h>
 #include <pthread.h>
 #include <sys/queue.h>
 #include <sched.h>
@@ -34,55 +38,68 @@ extern char *dev_name;
 static pthread_spinlock_t cb_spin;
 STAILQ_HEAD (callback_head, xztl_io_mcmd) cb_head;
 
-static void znd_media_async_cb (struct xnvme_req *xreq, void *cb_arg)
+static struct xnvme_cmd_ctx init_sync_cmd_ctx(){
+    struct xnvme_cmd_ctx ret;
+
+    ret = xnvme_cmd_ctx_from_dev(zndmedia.dev);
+
+    return ret;
+}
+
+static void znd_media_async_cb (struct xnvme_cmd_ctx *ctx, void *cb_arg)
 {
     struct xztl_io_mcmd *cmd;
     uint16_t sec_i = 0;
 
     cmd = (struct xztl_io_mcmd *) cb_arg;
-    cmd->status = xnvme_req_cpl_status (xreq);
+    cmd->status = xnvme_cmd_ctx_cpl_status (ctx);
 
     if (!cmd->status && cmd->opcode == XZTL_ZONE_APPEND)
-	cmd->paddr[sec_i] = *(uint64_t *) &xreq->cpl.cdw0;
+	cmd->paddr[sec_i] = *(uint64_t *) &ctx->cpl.cdw0;
 
     if (cmd->opcode == XZTL_CMD_WRITE)
 	cmd->paddr[sec_i] = cmd->addr[sec_i].g.sect;
 
     if (cmd->status) {
-	xztl_print_mcmd (cmd);
-	xnvme_req_pr (xreq, 0);
+        xztl_print_mcmd (cmd);
+        xnvme_cmd_ctx_pr (ctx, 0);
     }
+
+    xnvme_queue_put_cmd_ctx(ctx->async.queue, ctx);
 
     pthread_spin_lock (&cb_spin);
     STAILQ_INSERT_TAIL (&cb_head, cmd, entry);
     pthread_spin_unlock (&cb_spin);
 }
 
+static struct xnvme_cmd_ctx *init_async_cmd_ctx(struct xztl_io_mcmd *cmd){
+    struct xnvme_cmd_ctx *ret;
+
+    ret = xnvme_cmd_ctx_from_queue(cmd->async_ctx->asynch);
+    xnvme_cmd_ctx_set_cb(ret, znd_media_async_cb, cmd);
+
+    return ret;
+}
+
 static int znd_media_submit_read_synch (struct xztl_io_mcmd *cmd)
 {
-    struct xnvme_req *xreq;
+    struct xnvme_cmd_ctx ctx;
+    void *dbuf;
     uint64_t slba;
     uint16_t sec_i = 0;
     struct timespec ts_s, ts_e;
 
-    xreq = &cmd->media_ctx;
-    xreq->async.ctx    = NULL;
-    xreq->async.cb_arg = NULL;
-
     /* The read path is not group based. It uses only sectors */
     slba = cmd->addr[sec_i].g.sect;
+
+    dbuf = (void *)cmd->prp[sec_i];
+
+    ctx = init_sync_cmd_ctx();
 
     int ret;
 
     GET_MICROSECONDS(cmd->us_start, ts_s);
-    ret = xnvme_cmd_read (zndmedia.dev,
-			    xnvme_dev_get_nsid (zndmedia.dev),
-			    slba,
-			    (uint16_t) cmd->nsec[sec_i] - 1,
-			    (void *) cmd->prp[sec_i],
-			    NULL,
-			    0,
-			    xreq);
+    ret = xnvme_nvm_read(&ctx, xnvme_dev_get_nsid(zndmedia.dev), slba, (uint16_t) cmd->nsec[sec_i] - 1, dbuf, NULL);
     GET_MICROSECONDS(cmd->us_end, ts_e);
 
     /* WARNING: Uncommenting this line causes performance drop */
@@ -99,29 +116,16 @@ static int znd_media_submit_read_asynch (struct xztl_io_mcmd *cmd)
     uint16_t sec_i = 0;
     uint64_t slba;
     void *dbuf;
-    struct xztl_mthread_ctx *tctx;
-    struct xnvme_req *xreq;
-
-    tctx = cmd->async_ctx;
-    xreq = &cmd->media_ctx;
+    struct xnvme_cmd_ctx *ctx;
 
     dbuf = (void *) cmd->prp[sec_i];
 
     /* The read path is not group based. It uses only sectors */
     slba = cmd->addr[sec_i].g.sect;
+    
+    ctx = init_async_cmd_ctx(cmd);
 
-    xreq->async.ctx    = tctx->asynch;
-    xreq->async.cb     = znd_media_async_cb;
-    xreq->async.cb_arg = (void *) cmd;
-
-    return xnvme_cmd_read (zndmedia.dev,
-			    xnvme_dev_get_nsid (zndmedia.dev),
-			    slba,
-			    (uint16_t) cmd->nsec[sec_i] - 1,
-			    dbuf,
-			    NULL,
-			    XNVME_CMD_ASYNC,
-			    xreq);
+    return xnvme_nvm_read(ctx, xnvme_dev_get_nsid(zndmedia.dev), slba, (uint16_t) cmd->nsec[sec_i] - 1, dbuf, NULL);
 }
 
 static int znd_media_submit_write_synch (struct xztl_io_mcmd *cmd)
@@ -135,31 +139,20 @@ static int znd_media_submit_write_asynch (struct xztl_io_mcmd *cmd)
     uint64_t slba;
     void *dbuf;
     struct xztl_mthread_ctx *tctx;
-    struct xnvme_req *xreq;
+    struct xnvme_cmd_ctx *ctx;
     int ret;
 
     tctx = cmd->async_ctx;
-    xreq = &cmd->media_ctx;
-
     dbuf = (void *) cmd->prp[sec_i];
 
     /* The write path is not group based. It uses only sectors */
     slba = cmd->addr[sec_i].g.sect;
-
-    xreq->async.ctx    = tctx->asynch;
-    xreq->async.cb     = znd_media_async_cb;
-    xreq->async.cb_arg = (void *) cmd;
+    
+    ctx = init_async_cmd_ctx(cmd);
 
     pthread_spin_lock (&tctx->qpair_spin);
 
-    ret = xnvme_cmd_write (zndmedia.dev,
-			    xnvme_dev_get_nsid (zndmedia.dev),
-			    slba,
-			    (uint16_t) cmd->nsec[sec_i] - 1,
-			    dbuf,
-			    NULL,
-			    XNVME_CMD_ASYNC,
-			    xreq);
+    ret = xnvme_nvm_write(ctx, xnvme_dev_get_nsid(zndmedia.dev), slba, (uint16_t) cmd->nsec[sec_i] - 1, dbuf, NULL);
 
     pthread_spin_unlock (&tctx->qpair_spin);
 
@@ -179,34 +172,20 @@ static int znd_media_submit_append_asynch (struct xztl_io_mcmd *cmd)
     uint16_t zone_i = 0;
     uint64_t zlba;
     const void *dbuf;
-    struct xztl_mthread_ctx *tctx;
-    struct xnvme_req *xreq;
+    struct xnvme_cmd_ctx *ctx;
     int ret;
-
-    tctx      = cmd->async_ctx;
-    xreq      = &cmd->media_ctx;
 
     dbuf = (const void *) cmd->prp[zone_i];
 
     /* The write path separates zones into groups */
     zlba = (zndmedia.media.geo.zn_grp * cmd->addr[zone_i].g.grp +
 	    cmd->addr[zone_i].g.zone) * zndmedia.devgeo->nsect;
+    
+    ctx = init_async_cmd_ctx(cmd);
 
-    xreq->async.ctx    = tctx->asynch;
-    xreq->async.cb     = znd_media_async_cb;
-    xreq->async.cb_arg = (void *) cmd;
+    ret = (!XZTL_WRITE_APPEND) ? xnvme_znd_append(ctx, xnvme_dev_get_nsid(zndmedia.dev), zlba, (uint16_t) cmd->nsec[zone_i] - 1, dbuf, NULL) : -1;
 
-    ret = (!XZTL_WRITE_APPEND) ? znd_cmd_append (zndmedia.dev,
-				    xnvme_dev_get_nsid (zndmedia.dev),
-				    zlba,
-				    (uint16_t) cmd->nsec[zone_i] - 1,
-				    dbuf,
-				    NULL,
-				    XNVME_CMD_ASYNC,
-				    xreq) :
-				-1;
-    if (ret)
-	xztl_print_mcmd (cmd);
+    if (ret) xztl_print_mcmd (cmd);
 
     return ret;
 }
@@ -232,25 +211,17 @@ static int znd_media_submit_io (struct xztl_io_mcmd *cmd)
 static inline int znd_media_zone_manage (struct xztl_zn_mcmd *cmd, uint8_t op)
 {
     uint32_t lba;
-    struct xnvme_req devreq;
+    struct xnvme_cmd_ctx devreq;
     int ret;
 
     lba = ( (zndmedia.devgeo->nzone * cmd->addr.g.grp) +
 	    cmd->addr.g.zone) * zndmedia.devgeo->nsect;
 
-    devreq.async.ctx    = NULL;
-    devreq.async.cb_arg = NULL;
+    devreq = init_sync_cmd_ctx();
 
-    ret = znd_cmd_mgmt_send (zndmedia.dev,
-			     xnvme_dev_get_nsid (zndmedia.dev),
-			     lba,
-			     op,
-			     0,
-			     NULL,
-			     0,
-			     &devreq);
+    ret = xnvme_znd_mgmt_send(&devreq, xnvme_dev_get_nsid(zndmedia.dev), lba, op, 0, NULL);
 
-    cmd->status = (ret) ? xnvme_req_cpl_status (&devreq) : XZTL_OK;
+    cmd->status = (ret) ? xnvme_cmd_ctx_cpl_status (&devreq) : XZTL_OK;
 
     //return (ret) ? op : XZTL_OK;
     return ret;
@@ -258,7 +229,7 @@ static inline int znd_media_zone_manage (struct xztl_zn_mcmd *cmd, uint8_t op)
 
 static int znd_media_zone_report (struct xztl_zn_mcmd *cmd)
 {
-    struct znd_report *rep;
+    struct xnvme_znd_report *rep;
     size_t limit;
     uint32_t lba;
 
@@ -266,9 +237,10 @@ static int znd_media_zone_report (struct xztl_zn_mcmd *cmd)
     lba   = 0;/* ( (zndmedia.devgeo->nzone * cmd->addr.g.grp) +
 	            cmd->addr.g.zone) * zndmedia.devgeo->nsect; */
     limit = 0; /*cmd->nzones;*/
-    rep = znd_report_from_dev (zndmedia.dev, lba, limit, 0);
-    if (!rep)
-	return ZND_MEDIA_REPORT_ERR;
+
+    rep = xnvme_znd_report_from_dev (zndmedia.dev, lba, limit, 0);
+    
+    if (!rep) return ZND_MEDIA_REPORT_ERR;
 
     cmd->opaque = (void *) rep;
 
@@ -279,14 +251,14 @@ static int znd_media_zone_mgmt (struct xztl_zn_mcmd *cmd)
 {
     switch (cmd->opcode) {
 	case XZTL_ZONE_MGMT_CLOSE:
-	    return znd_media_zone_manage (cmd, ZND_SEND_CLOSE);
+	    return znd_media_zone_manage (cmd, XNVME_SPEC_ZND_CMD_MGMT_SEND_CLOSE);
 	case XZTL_ZONE_MGMT_FINISH:
-	    return znd_media_zone_manage (cmd, ZND_SEND_FINISH);
+	    return znd_media_zone_manage (cmd, XNVME_SPEC_ZND_CMD_MGMT_SEND_FINISH);
 	case XZTL_ZONE_MGMT_OPEN:
-	    return znd_media_zone_manage (cmd, ZND_SEND_OPEN);
+	    return znd_media_zone_manage (cmd, XNVME_SPEC_ZND_CMD_MGMT_SEND_OPEN);
 	case XZTL_ZONE_MGMT_RESET:
 	    xztl_stats_inc (XZTL_STATS_RESET_MCMD, 1);
-	    return znd_media_zone_manage (cmd, ZND_SEND_RESET);
+	    return znd_media_zone_manage (cmd, XNVME_SPEC_ZND_CMD_MGMT_SEND_RESET);
 	case XZTL_ZONE_MGMT_REPORT:
 	    return znd_media_zone_report (cmd);
 	default:
@@ -298,7 +270,7 @@ static int znd_media_zone_mgmt (struct xztl_zn_mcmd *cmd)
 
 static void *znd_media_dma_alloc (size_t size, uint64_t *phys)
 {
-    return xnvme_buf_alloc (zndmedia.dev, size, phys);
+    return xnvme_buf_phys_alloc (zndmedia.dev, size, phys);
 }
 
 static void znd_media_dma_free (void *ptr)
@@ -306,12 +278,13 @@ static void znd_media_dma_free (void *ptr)
     xnvme_buf_free (zndmedia.dev, ptr);
 }
 
-static int znd_media_async_poke (struct xnvme_async_ctx *ctx,
+static int znd_media_async_poke (struct xnvme_queue *ctx,
 				 uint32_t *c, uint16_t max)
 {
     int ret;
 
-    ret = xnvme_async_poke (zndmedia.dev, ctx, max);
+    ctx->base.dev = zndmedia.dev;
+    ret = xnvme_queue_poke (ctx, max);
     if (ret < 0)
 	return ZND_MEDIA_POKE_ERR;
 
@@ -320,11 +293,11 @@ static int znd_media_async_poke (struct xnvme_async_ctx *ctx,
     return XZTL_OK;
 }
 
-static int znd_media_async_outs (struct xnvme_async_ctx *ctx, uint32_t *c)
+static int znd_media_async_outs (struct xnvme_queue *ctx, uint32_t *c)
 {
     int ret;
 
-    ret = xnvme_async_get_outstanding (ctx);
+    ret = xnvme_queue_get_outstanding (ctx);
     if (ret < 0)
 	return ZND_MEDIA_OUTS_ERR;
 
@@ -333,11 +306,11 @@ static int znd_media_async_outs (struct xnvme_async_ctx *ctx, uint32_t *c)
     return XZTL_OK;
 }
 
-static int znd_media_async_wait (struct xnvme_async_ctx *ctx, uint32_t *c)
+static int znd_media_async_wait (struct xnvme_queue *ctx, uint32_t *c)
 {
     int ret;
 
-    ret = xnvme_async_get_outstanding (ctx);
+    ret = xnvme_queue_get_outstanding (ctx);
     if (ret)
 	return ZND_MEDIA_WAIT_ERR;
 
@@ -398,11 +371,12 @@ static int znd_media_asynch_init (struct xztl_misc_cmd *cmd)
 
     tctx = cmd->asynch.ctx_ptr;
 
-    ret = xnvme_async_init (zndmedia.dev, &tctx->asynch, cmd->asynch.depth,
-				    XNVME_ASYNC_SQPOLL | XNVME_ASYNC_IOPOLL);
+    ret = xnvme_queue_init (zndmedia.dev, cmd->asynch.depth,
+				    XNVME_QUEUE_SQPOLL | XNVME_QUEUE_IOPOLL, &tctx->asynch);
     if (ret) {
 	return ZND_MEDIA_ASYNCH_ERR;
     }
+
 
     STAILQ_INIT (&cb_head);
     if (pthread_spin_init (&cb_spin, 0)) {
@@ -416,7 +390,8 @@ static int znd_media_asynch_init (struct xztl_misc_cmd *cmd)
 			znd_media_asynch_comp_th,
 			(void *) cmd)) {
 
-	xnvme_async_term (zndmedia.dev, tctx->asynch);
+    tctx->asynch->base.dev = zndmedia.dev;
+	xnvme_queue_term (tctx->asynch);
 	tctx->asynch = NULL;
 	pthread_spin_destroy (&cb_spin);
 
@@ -438,7 +413,8 @@ static int znd_media_asynch_term (struct xztl_misc_cmd *cmd)
     /* Join the completion thread (should be terminated by the caller) */
     pthread_join (cmd->asynch.ctx_ptr->comp_tid, NULL);
 
-    ret = xnvme_async_term (zndmedia.dev, cmd->asynch.ctx_ptr->asynch);
+    cmd->asynch.ctx_ptr->asynch->base.dev = zndmedia.dev;
+    ret = xnvme_queue_term (cmd->asynch.ctx_ptr->asynch);
     if (ret)
 	return ZND_MEDIA_ASYNCH_ERR;
 

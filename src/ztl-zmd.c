@@ -65,7 +65,7 @@ static int ztl_zmd_load_report (struct app_group *grp)
 
     ret = xztl_media_submit_zn (&cmd);
     if (!ret) {
-	grp->zmd.report = (struct znd_report *) cmd.opaque;
+	grp->zmd.report = (struct xnvme_znd_report *) cmd.opaque;
     }
 
     if (ret) {

@@ -22,8 +22,8 @@
 #include <xztl.h>
 #include <xztl-ztl.h>
 #include <ztl.h>
-#include <libznd.h>
 #include <libxnvme_spec.h>
+#include <libxnvme_znd.h>
 
 extern struct xztl_core core;
 
@@ -421,8 +421,8 @@ static void ztl_pro_grp_zones_free (struct app_group *grp)
 
 int ztl_pro_grp_init (struct app_group *grp)
 {
-    struct znd_descr *zinfo;
-    struct znd_report    *rep;
+    struct xnvme_spec_znd_descr *zinfo;
+    struct xnvme_znd_report    *rep;
     struct ztl_pro_zone  *zone;
     struct app_zmd_entry *zmde;
     struct ztl_pro_grp   *pro;
@@ -459,7 +459,7 @@ int ztl_pro_grp_init (struct app_group *grp)
     for (zone_i = 0; zone_i < grp->zmd.entries; zone_i++) {
 
 	/* We are getting the full report here */
-	zinfo = ZND_REPORT_DESCR (rep,
+	zinfo = XNVME_ZND_REPORT_DESCR (rep,
 		    grp->id * core.media->geo.zn_grp + zone_i);
 
 	zone = &pro->vzones[zone_i];
@@ -483,7 +483,7 @@ int ztl_pro_grp_init (struct app_group *grp)
 	zone->lock      = 0;
 
 	switch (zinfo->zs) {
-	    case ZND_STATE_EMPTY:
+	    case XNVME_SPEC_ZND_STATE_EMPTY:
 
 		if ( (zmde->flags & XZTL_ZMD_USED) ||
 		     (zmde->flags & XZTL_ZMD_OPEN) ) {
@@ -502,9 +502,9 @@ int ztl_pro_grp_init (struct app_group *grp)
 				zmde->addr.g.grp, zmde->addr.g.zone);
 		break;
 
-	    case ZND_STATE_EOPEN:
-	    case ZND_STATE_IOPEN:
-	    case ZND_STATE_CLOSED:
+	    case XNVME_SPEC_ZND_STATE_EOPEN:
+	    case XNVME_SPEC_ZND_STATE_IOPEN:
+	    case XNVME_SPEC_ZND_STATE_CLOSED:
 
 		zmde->flags |= (XZTL_ZMD_OPEN | XZTL_ZMD_USED);
 
@@ -523,7 +523,7 @@ int ztl_pro_grp_init (struct app_group *grp)
 				zmde->addr.g.grp, zmde->addr.g.zone);
 		break;
 
-	    case ZND_STATE_FULL:
+	    case XNVME_SPEC_ZND_STATE_FULL:
 
 		if (zmde->flags & XZTL_ZMD_OPEN) {
 		    log_erra("ztl-pro: device reported FULL zone, but ZMD flag"

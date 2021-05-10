@@ -84,7 +84,7 @@ struct xztl_mthread_ctx {
     pthread_t       comp_tid;
     int             comp_active;
     pthread_spinlock_t       qpair_spin;
-    struct xnvme_async_ctx *asynch;
+    struct xnvme_queue *asynch;
 };
 
 struct xztl_io_mcmd {
@@ -107,9 +107,6 @@ struct xztl_io_mcmd {
     /* For latency */
      uint64_t us_start;
      uint64_t us_end;
-
-     /* change to pointer when xnvme is updated */
-     struct xnvme_req media_ctx;
 
      /* Completion queue */
      STAILQ_ENTRY(xztl_io_mcmd) entry;

@@ -20,6 +20,7 @@
 #include <xztl.h>
 #include <xztl-media.h>
 #include <xztl-ztl.h>
+#include <libxnvme.h>
 #include <ztl.h>
 #include <unistd.h>
 #include <sched.h>

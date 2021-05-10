@@ -23,11 +23,11 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <string.h>
-#include <libznd.h>
 #include <libxnvme.h>
 #include <xztl.h>
 #include <xztl-media.h>
 #include <xztl-ztl.h>
+#include <libxnvme_znd.h>
 
 extern struct xztl_core core;
 

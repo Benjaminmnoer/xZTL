@@ -175,7 +175,7 @@ struct app_zmd {
     uint8_t             *tbl;        /* This is the 'small' fixed table */
     uint32_t             ent_per_pg;
     struct app_tiny_tbl  tiny;       /* This is the 'tiny' table for checkpoint */
-    struct znd_report   *report;
+    struct xnvme_znd_report   *report;
 };
 
 struct app_grp_flags {

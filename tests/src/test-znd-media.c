@@ -3,8 +3,8 @@
 #include <xztl.h>
 #include <xztl-media.h>
 #include <ztl-media.h>
-#include <libznd.h>
 #include <libxnvme_spec.h>
+#include <libxnvme_znd.h>
 #include <xztl-mempool.h>
 #include "CUnit/Basic.h"
 
@@ -61,8 +61,8 @@ static void test_znd_media_exit (void)
 static void test_znd_report (void)
 {
     struct xztl_zn_mcmd cmd;
-    struct znd_report *report;
-    struct znd_descr *zinfo;
+    struct xnvme_znd_report *report;
+    struct xnvme_spec_znd_descr *zinfo;
     int ret, zi, zone, nzones;
     uint32_t znlbas;
 
@@ -76,8 +76,8 @@ static void test_znd_report (void)
     if (!ret) {
 	znlbas = core.media->geo.sec_zn;
 	for (zi = zone; zi < zone + nzones; zi++) {
-	    report = (struct znd_report *) cmd.opaque;
-	    zinfo = ZND_REPORT_DESCR(report, zi);
+	    report = (struct xnvme_znd_report *) cmd.opaque;
+	    zinfo = XNVME_ZND_REPORT_DESCR(report, zi);
 	    cunit_znd_assert_int_equal ("xztl_media_submit_zn:report:szlba",
 					 zinfo->zslba, zi * znlbas);
 	}
@@ -91,8 +91,8 @@ static void test_znd_manage_single (uint8_t op, uint8_t devop,
 				    uint32_t zone, char *name)
 {
     struct xztl_zn_mcmd cmd;
-    struct znd_report *report;
-    struct znd_descr *zinfo;
+    struct xnvme_znd_report *report;
+    struct xnvme_spec_znd_descr *zinfo;
     int ret;
 
     cmd.opcode = op;
@@ -112,8 +112,8 @@ static void test_znd_manage_single (uint8_t op, uint8_t devop,
 	cunit_znd_assert_int ("xztl_media_submit_zn:report", cmd.status);
 
 	if (!ret) {
-	    report = (struct znd_report *) cmd.opaque;
-	    zinfo = ZND_REPORT_DESCR(report, cmd.addr.g.zone);
+	    report = (struct xnvme_znd_report *) cmd.opaque;
+	    zinfo = XNVME_ZND_REPORT_DESCR(report, cmd.addr.g.zone);
 	    cunit_znd_assert_int_equal (name,
 					zinfo->zs, devop);
 	}
@@ -128,23 +128,23 @@ static void test_znd_op_cl_fi_re (void)
     uint32_t zone = 10;
 
     test_znd_manage_single (XZTL_ZONE_MGMT_RESET,
-			    ZND_STATE_EMPTY,
+			    XNVME_SPEC_ZND_STATE_EMPTY,
 			    zone,
 			    "xztl_media_submit_znm:reset");
     test_znd_manage_single (XZTL_ZONE_MGMT_OPEN,
-			    ZND_STATE_EOPEN,
+			    XNVME_SPEC_ZND_STATE_EOPEN,
 			    zone,
 			    "xztl_media_submit_znm:open");
     test_znd_manage_single (XZTL_ZONE_MGMT_CLOSE,
-			    ZND_STATE_CLOSED,
+			    XNVME_SPEC_ZND_STATE_CLOSED,
 			    zone,
 			    "xztl_media_submit_znm:close");
     test_znd_manage_single (XZTL_ZONE_MGMT_FINISH,
-			    ZND_STATE_FULL,
+			    XNVME_SPEC_ZND_STATE_FULL,
 			    zone,
 			    "xztl_media_submit_znm:finish");
     test_znd_manage_single (XZTL_ZONE_MGMT_RESET,
-			    ZND_STATE_EMPTY,
+			    XNVME_SPEC_ZND_STATE_EMPTY,
 			    zone,
 			    "xztl_media_submit_znm:reset");
 }
@@ -273,7 +273,7 @@ static void test_znd_append_zone (void)
 
     /* Reset the zone before appending */
     test_znd_manage_single (XZTL_ZONE_MGMT_RESET,
-			    ZND_STATE_EMPTY,
+			    XNVME_SPEC_ZND_STATE_EMPTY,
 			    zone,
 			    "xztl_media_submit_znm:reset");
 
