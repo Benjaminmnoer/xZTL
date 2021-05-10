@@ -1,1 +1,8 @@
 build
+*.qcow2
+*.img
+third-party/
+vms/run/
+vms/state/
+vms/log/
+.vs-code

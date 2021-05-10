@@ -1,0 +1,13 @@
+base-devel
+cmake
+cunit
+gcc
+git
+libaio
+libutil-linux
+make
+meson
+ncurses
+ninja
+numactl
+python3

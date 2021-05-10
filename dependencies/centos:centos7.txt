@@ -1,0 +1,14 @@
+CUnit-devel
+git
+glibc-static
+libaio-devel
+libuuid-devel
+make
+nasm
+ncurses-devel
+numactl-devel
+openssl-devel
+patch
+python3
+python3-pip
+wget

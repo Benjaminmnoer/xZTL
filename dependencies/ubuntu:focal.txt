@@ -1,0 +1,14 @@
+build-essential
+cmake
+g++
+gcc
+git
+libaio-dev
+libcunit1-dev
+libncurses5-dev
+libnuma-dev
+libssl-dev
+nasm
+python3
+python3-pip
+uuid-dev
