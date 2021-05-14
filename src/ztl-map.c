@@ -408,7 +408,7 @@ static int map_upsert (uint64_t id, uint64_t val, uint64_t *old,
 
     xztl_atomic_int64_update (&map_ent->addr, val);
 
-    printf("Inserted mapping for id: %lu\nZone_id: %lu\nZone_offset:%lu\nn_sectors:%lu\nsector_offset:%lu\n", id, map_ent->g.zone_id, map_ent->g.zone_offset, map_ent->g.n_sectors, map_ent->g.sector_offset);
+    // printf("Inserted mapping for id: %lu\nZone_id: %lu\nZone_offset:%lu\nn_sectors:%lu\nsector_offset:%lu\n", id, map_ent->g.zone_id, map_ent->g.zone_offset, map_ent->g.n_sectors, map_ent->g.sector_offset);
 
     /* Uncomment this line if we implement recovery at the ZTL */
     //cache_ent->dirty = 1;
