@@ -92,6 +92,8 @@ static int znd_media_submit_read_synch (struct xztl_io_mcmd *cmd)
     /* The read path is not group based. It uses only sectors */
     slba = cmd->addr[sec_i].g.sect;
 
+    printf("Submitting read to: %u\n", slba);
+
     dbuf = (void *)cmd->prp[sec_i];
 
     ctx = init_sync_cmd_ctx();
@@ -122,6 +124,7 @@ static int znd_media_submit_read_asynch (struct xztl_io_mcmd *cmd)
 
     /* The read path is not group based. It uses only sectors */
     slba = cmd->addr[sec_i].g.sect;
+    printf("Submitting read to: %u\n", slba);
     
     ctx = init_async_cmd_ctx(cmd);
 
@@ -148,6 +151,8 @@ static int znd_media_submit_write_asynch (struct xztl_io_mcmd *cmd)
     /* The write path is not group based. It uses only sectors */
     slba = cmd->addr[sec_i].g.sect;
     
+    printf("Submitting write to: %u\n", slba);
+
     ctx = init_async_cmd_ctx(cmd);
 
     pthread_spin_lock (&tctx->qpair_spin);
