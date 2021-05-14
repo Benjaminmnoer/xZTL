@@ -12,7 +12,7 @@
 #define TEST_RANDOM_ID 2
 
 /* Object Size */
-#define TEST_BUFFER_SZ (1024 * 1024 * 16) /* 16 MB */
+#define TEST_BUFFER_SZ (1024 * 1024 * 12) /* 12 MB */
 
 static uint8_t *wbuf[TEST_N_BUFFERS];
 static uint8_t *rbuf[TEST_N_BUFFERS];
