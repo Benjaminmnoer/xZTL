@@ -163,8 +163,8 @@ WAIT:
     cache->nused++;
     pthread_spin_unlock (&cache->mb_spin);
 
-    ZDEBUG (ZDEBUG_MAP, "ztl-map: Page cache loaded. Offset 0x%lu",
-				(uint64_t) cache_ent->addr.g.offset);
+    // ZDEBUG (ZDEBUG_MAP, "ztl-map: Page cache loaded. Offset 0x%lu",
+	// 			(uint64_t) cache_ent->addr.g.offset);
 
     return 0;
 }
@@ -411,39 +411,36 @@ static int map_upsert (uint64_t id, uint64_t val, uint64_t *old,
     /* Uncomment this line if we implement recovery at the ZTL */
     //cache_ent->dirty = 1;
 
-    ZDEBUG (ZDEBUG_MAP, "  upsert succeed: ID: %lu, val: (0x%lx/%d/%d)",
-	    id, (uint64_t) map_ent->g.offset, map_ent->g.nsec, map_ent->g.multi);
+    // ZDEBUG (ZDEBUG_MAP, "  upsert succeed: ID: %lu, val: (0x%lx/%d/%d)",
+	//     id, (uint64_t) map_ent->g.offset, map_ent->g.nsec, map_ent->g.multi);
 
     return 0;
 }
 
-static uint64_t map_read (uint64_t id)
+static struct app_map_entry *map_read (uint64_t id)
 {
     struct map_cache_entry *cache_ent;
     struct app_map_entry *map_ent;
     uint32_t ent_off;
-    uint64_t ret;
 
     ent_off = id % map_ent_per_pg;
     if (ent_off >= map_ent_per_pg) {
         log_erra ("ztl-map: read. Entry offset out of bounds. ID %lu", id);
-        return AND64;
+        return NULL;
     }
 
     ZDEBUG (ZDEBUG_MAP, "ztl-map: read. ID: %lu, off %d.", id, ent_off);
 
     cache_ent = map_get_cache_entry (id);
     if (!cache_ent)
-        return AND64;
+        return NULL;
 
     map_ent = &((struct app_map_entry *) cache_ent->buf)[ent_off];
 
-    ret = map_ent->g.offset;
+    // ZDEBUG (ZDEBUG_MAP, "  read succeed: ID: %lu, val (0x%lx/%d/%d)",
+	//     id, (uint64_t) map_ent->g.offset, map_ent->g.nsec, map_ent->g.multi);
 
-    ZDEBUG (ZDEBUG_MAP, "  read succeed: ID: %lu, val (0x%lx/%d/%d)",
-	    id, (uint64_t) map_ent->g.offset, map_ent->g.nsec, map_ent->g.multi);
-
-    return ret;
+    return map_ent;
 }
 
 static struct app_map_mod libztl_map = {

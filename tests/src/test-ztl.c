@@ -119,7 +119,7 @@ static void test_ztl_map_upsert_read (void)
     }
 
     for (id = 1; id <= count; id++) {
-	val = ztl()->map->read_fn (id * interval);
+	val = ztl()->map->read_fn (id * interval)->addr;
 	cunit_ztl_assert_int_equal ("ztl()->map->read", val, id * interval);
     }
 
@@ -131,7 +131,7 @@ static void test_ztl_map_upsert_read (void)
     cunit_ztl_assert_int ("ztl()->map->upsert_fn", ret);
     cunit_ztl_assert_int_equal ("ztl()->map->upsert_fn:old", old, id);
 
-    old = ztl()->map->read_fn (id);
+    old = ztl()->map->read_fn (id)->addr;
     cunit_ztl_assert_int_equal ("ztl()->map->read", old, val);
 }
 

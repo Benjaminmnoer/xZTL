@@ -136,19 +136,11 @@ struct app_tiny_tbl {
 struct app_map_entry {
     union {
 	struct {
-
-	    /* Media offset */
-	    /* 4KB  sector: Max capacity: 4PB
-             * 512b sector: Max capacity: 512TB */
-            uint64_t offset : 40;
-
-	    /* Number of sectors */
-            /* 4KB  sector: Max entry size: 32GB
-             * 512b sector: Max entry size: 4GB */
-	    uint64_t nsec   : 23;
-
-	    /* Multi-piece mapping bit */
-	    uint64_t multi  : 1;
+	    uint64_t zone_id : 27;
+        uint64_t zone_offset : 12;
+        uint64_t n_sectors : 12;
+        uint64_t sector_offset : 12;
+        uint64_t multi : 1;
 	} g;
 
 	uint64_t addr;
@@ -245,7 +237,7 @@ typedef void     (app_map_exit) (void);
 typedef void     (app_map_persist) (void);
 typedef int      (app_map_upsert) (uint64_t id, uint64_t addr,
 					uint64_t *old, uint64_t old_caller);
-typedef uint64_t (app_map_read) (uint64_t id);
+typedef struct app_map_entry *(app_map_read) (uint64_t id);
 typedef int      (app_map_upsert_md) (uint64_t index, uint64_t addr,
 							uint64_t old_addr);
 

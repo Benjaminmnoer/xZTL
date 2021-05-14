@@ -219,6 +219,7 @@ static int __zrocks_read (uint64_t offset, void *buf, size_t size) {
 int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
 {
     int ret;
+    struct app_map_entry *map_entry;
     uint64_t objsec_off;
 
     if (ZROCKS_DEBUG)
@@ -226,7 +227,8 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
 							id, offset, size);
 
     /* This assumes a single zone offset per object */
-    objsec_off  = ztl()->map->read_fn (id);
+    map_entry = ztl()->map->read_fn (id);
+    objsec_off  = map_entry->g.zone_id * core.media->geo.sec_zn + map_entry->g.zone_offset;
 
     if (ZROCKS_DEBUG)
 	log_infoa ("  objsec_off %lx, userbytes_off %lu", objsec_off, offset);
