@@ -111,12 +111,18 @@ struct xztl_maddr {
 #define XZTL_IO_MAX_MCMD     65536 /* 4KB sectors : 16 GB user buffers */
 				   /* 512b sectors: 2 GB user buffers */
 
+enum xztl_user_opcodes {
+    XZTL_USER_READ = 0x0,
+    XZTL_USER_WRITE = 0x1
+};
+
 struct xztl_io_ucmd {
     uint64_t 	   id;
-    void	  *buf;
-    size_t 	   size;
+    void	      *buf;
+    size_t 	       size;
     uint16_t 	   prov_type;
     uint8_t 	   app_md;  /* Application is responsible for mapping/recovery */
+    uint8_t        opcode;
     uint8_t 	   status;
 
     xztl_callback *callback;

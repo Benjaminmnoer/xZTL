@@ -239,6 +239,11 @@ static void ztl_wca_poke_ctx (void) {
     }
 }
 
+static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
+{
+
+}
+
 static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
 {
     struct app_pro_addr *prov;
@@ -249,16 +254,14 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
     uint64_t boff;
     int ret, ncmd_zn, zncmd_i;
 
+	if (ucmd->opcode == XZTL_USER_READ){
+		return ztl_wca_process_read(ucmd);
+	}
+
     ZDEBUG (ZDEBUG_WCA, "ztl-wca: Processing user write. ID %lu", ucmd->id);
 
     nsec = ucmd->size / core.media->geo.nbytes;
-
-    /* We do not support non-aligned buffers */
-    if (ucmd->size % (core.media->geo.nbytes * ZTL_WCA_SEC_MCMD_MIN != 0)) {
-	log_erra ("ztl-wca: Buffer is not aligned to %d bytes: %lu bytes.",
-		    core.media->geo.nbytes * ZTL_WCA_SEC_MCMD_MIN, ucmd->size);
-	goto FAILURE;
-    }
+	nsec = (ucmd->size % (core.media->geo.nbytes * ZTL_WCA_SEC_MCMD_MIN != 0) == 0) ? nsec : nsec + 1;
 
     /* First we check the number of commands based on ZTL_WCA_SEC_MCMD */
     ncmd = nsec / ZTL_WCA_SEC_MCMD;
@@ -282,6 +285,10 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
 						    nsec, ucmd->prov_type);
 	goto FAILURE;
     }
+	printf("Provisioning found n address: %lu\n", prov->naddr);
+	for (int i = 0; i < prov->naddr; i++){
+		printf("Zone identifier: %lu", prov->addr[i].g.zone);
+	}
 
     /* We check the number of commands again based on the provisioning */
     ncmd = ztl_wca_ncmd_prov_based (prov);
@@ -301,6 +308,7 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
     ZDEBUG (ZDEBUG_WCA, "ztl-wca: NMCMD: %d", ncmd);
 
     for (zn_i = 0; zn_i < ZTL_PRO_STRIPE * 2; zn_i++)
+
 	zn_cmd_id[zn_i] = -1;
 
     /* Populate media commands */
