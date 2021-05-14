@@ -159,6 +159,7 @@ static void ztl_wca_callback_mcmd (void *arg)
 				map.g.zone_id 		= ucmd->prov->addr->g.zone;
 				map.g.zone_offset 	= ucmd->prov->addr->g.sect - (core.media->geo.sec_zn * ucmd->prov->addr->g.zone);
 				map.g.n_sectors   	= ucmd->msec[0];
+				map.g.sector_offset = ucmd->size / core.media->geo.nbytes;
 				map.g.multi  		= 0;
 				ret = ztl()->map->upsert_fn (ucmd->id, map.addr, &old, 0);
 				if (ret)
@@ -286,13 +287,13 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
 	goto FAILURE;
     }
 
-	printf("\n");
-	printf("Command id: %lu\n", ucmd->id);
-	printf("Command size: %lu\n", ucmd->size);
-	printf("Provisioning found n address: %lu\n", prov->naddr);
-	for (int i = 0; i < prov->naddr; i++){
-		printf("Zone identifier: %lu", prov->addr[i].g.zone);
-	}
+	// printf("\n");
+	// printf("Command id: %lu\n", ucmd->id);
+	// printf("Command size: %lu\n", ucmd->size);
+	// printf("Provisioning found n address: %lu\n", prov->naddr);
+	// for (int i = 0; i < prov->naddr; i++){
+	// 	printf("Zone identifier: %lu", prov->addr[i].g.zone);
+	// }
 
     /* We check the number of commands again based on the provisioning */
     ncmd = ztl_wca_ncmd_prov_based (prov);

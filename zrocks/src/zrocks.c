@@ -73,6 +73,7 @@ static int __zrocks_write (struct xztl_io_ucmd *ucmd,
     ucmd->completed = 0;
     ucmd->callback  = NULL;
     ucmd->prov      = NULL;
+    ucmd->opcode    = XZTL_USER_WRITE;
 
     if (ztl()->wca->submit_fn (ucmd))
 	return -1;
@@ -94,7 +95,7 @@ int zrocks_new (uint64_t id, void *buf, size_t size, uint16_t level)
     int ret;
 
     if (ZROCKS_DEBUG)
-	log_infoa ("zrocks (write_obj): ID %lu, level %d, size %lu\n",
+	printf ("zrocks (write_obj): ID %lu, level %d, size %lu\n",
 							    id, level, size);
 
     ucmd.app_md = 0;

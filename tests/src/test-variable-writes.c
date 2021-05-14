@@ -6,7 +6,7 @@
 #include "CUnit/Basic.h"
 
 /* Number of Objects */
-#define TEST_N_BUFFERS 2
+#define TEST_N_BUFFERS 1024
 
 /* Number of random objects to read */
 #define TEST_RANDOM_ID 2
