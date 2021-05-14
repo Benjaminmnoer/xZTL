@@ -26,7 +26,7 @@
 #include <xztl.h>
 
 /* Append Command support */
-#define XZTL_WRITE_APPEND 0
+#define XZTL_WRITE_APPEND 1
 
 /* Number of maximum addresses in a single command vector.
  * 	A single address is needed for zone append. We should
