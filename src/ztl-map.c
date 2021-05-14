@@ -440,7 +440,7 @@ static uint64_t map_read (uint64_t id)
 
     map_ent = &((struct app_map_entry *) cache_ent->buf)[ent_off];
 
-    ret = (core.media->geo.sec_zn * map_ent->g.zone_id + map_ent->g.zone_offset) * core.media->geo.nbytes;
+    ret = (core.media->geo.sec_zn * map_ent->g.zone_id + map_ent->g.zone_offset);
 
     // ZDEBUG (ZDEBUG_MAP, "  read succeed: ID: %lu, val (0x%lx/%d/%d)",
 	//     id, (uint64_t) map_ent->g.offset, map_ent->g.nsec, map_ent->g.multi);
