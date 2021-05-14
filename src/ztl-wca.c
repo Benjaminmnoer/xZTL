@@ -285,6 +285,10 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
 						    nsec, ucmd->prov_type);
 	goto FAILURE;
     }
+
+	printf("\n");
+	printf("Command id: %lu\n", ucmd->id);
+	printf("Command size: %lu\n", ucmd->size);
 	printf("Provisioning found n address: %lu\n", prov->naddr);
 	for (int i = 0; i < prov->naddr; i++){
 		printf("Zone identifier: %lu", prov->addr[i].g.zone);
