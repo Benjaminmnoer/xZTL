@@ -147,25 +147,26 @@ static void ztl_wca_callback_mcmd (void *arg)
 
     if (ucmd->ncb == ucmd->nmcmd) {
 
-	ucmd->noffs = 0;
+		ucmd->noffs = 0;
 
-	/* Update mapping if managed by the ZTL */
-	if (!ucmd->status && !ucmd->app_md) {
+		/* Update mapping if managed by the ZTL */
+		if (!ucmd->status && !ucmd->app_md) {
 
-	    /* Check if media offsets are sequential within the zone
-	     * For ZTL-managed mapping, we do not support multi-piece entries */
-	    if (!ztl_wca_check_offset_seq (ucmd)) {
-		map.addr     = 0;
-		map.g.offset = ucmd->moffset[0];
-		map.g.nsec   = ucmd->msec[0];
-		map.g.multi  = 0;
-		ret = ztl()->map->upsert_fn (ucmd->id, map.addr, &old, 0);
-		if (ret)
-		    ucmd->status = XZTL_ZTL_MAP_ERR;
-	    } else {
-		ucmd->status = XZTL_ZTL_APPEND_ERR;
-	    }
-	}
+			/* Check if media offsets are sequential within the zone
+			* For ZTL-managed mapping, we do not support multi-piece entries */
+			if (!ztl_wca_check_offset_seq (ucmd)) {
+				map.addr      		= 0;
+				map.g.zone_id 		= ucmd->prov->addr->g.zone;
+				map.g.zone_offset 	= ucmd->prov->addr->g.sect - (core.media->geo.sec_zn * ucmd->prov->addr->g.zone);
+				map.g.n_sectors   	= ucmd->msec[0];
+				map.g.multi  		= 0;
+				ret = ztl()->map->upsert_fn (ucmd->id, map.addr, &old, 0);
+				if (ret)
+					ucmd->status = XZTL_ZTL_MAP_ERR;
+			} else {
+				ucmd->status = XZTL_ZTL_APPEND_ERR;
+			}
+		}
 
 	/* If command is successfull, reorganize media offsets for multi-piece
 	 * mapping used by the user application */

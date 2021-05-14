@@ -163,8 +163,8 @@ WAIT:
     cache->nused++;
     pthread_spin_unlock (&cache->mb_spin);
 
-    ZDEBUG (ZDEBUG_MAP, "ztl-map: Page cache loaded. Offset 0x%lu",
-				(uint64_t) cache_ent->addr.g.offset);
+    // ZDEBUG (ZDEBUG_MAP, "ztl-map: Page cache loaded. Offset 0x%lu",
+	// 			(uint64_t) cache_ent->addr.g.offset);
 
     return 0;
 }
@@ -411,8 +411,8 @@ static int map_upsert (uint64_t id, uint64_t val, uint64_t *old,
     /* Uncomment this line if we implement recovery at the ZTL */
     //cache_ent->dirty = 1;
 
-    ZDEBUG (ZDEBUG_MAP, "  upsert succeed: ID: %lu, val: (0x%lx/%d/%d)",
-	    id, (uint64_t) map_ent->g.offset, map_ent->g.nsec, map_ent->g.multi);
+    // ZDEBUG (ZDEBUG_MAP, "  upsert succeed: ID: %lu, val: (0x%lx/%d/%d)",
+	//     id, (uint64_t) map_ent->g.offset, map_ent->g.nsec, map_ent->g.multi);
 
     return 0;
 }
@@ -438,10 +438,10 @@ static uint64_t map_read (uint64_t id)
 
     map_ent = &((struct app_map_entry *) cache_ent->buf)[ent_off];
 
-    ret = map_ent->g.offset;
+    ret = (core.media->geo.sec_zn * map_ent->g.zone_id + map_ent->g.zone_offset) / core.media->geo.nbytes;
 
-    ZDEBUG (ZDEBUG_MAP, "  read succeed: ID: %lu, val (0x%lx/%d/%d)",
-	    id, (uint64_t) map_ent->g.offset, map_ent->g.nsec, map_ent->g.multi);
+    // ZDEBUG (ZDEBUG_MAP, "  read succeed: ID: %lu, val (0x%lx/%d/%d)",
+	//     id, (uint64_t) map_ent->g.offset, map_ent->g.nsec, map_ent->g.multi);
 
     return ret;
 }
