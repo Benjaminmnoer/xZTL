@@ -274,7 +274,7 @@ static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
     if (sec_end - sec_off + 1 > nsec)
 	nsec++;
 
-    mp_entry = xztl_mempool_get (XZTL_MEMPOOL_MCMD, 0);
+    mp_entry = xztl_mempool_get (XZTL_MEMPOOL_MCMD, ZTL_PRO_TUSER);
     if (!mp_entry) {
 		goto FAILURE;
     }
@@ -312,7 +312,9 @@ static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 	memcpy (ucmd->buf, (char *) mp_entry->opaque + misalign, ucmd->size);
     }
 
-    xztl_mempool_put (mp_entry, XZTL_MEMPOOL_MCMD, 0);
+    xztl_mempool_put (mp_entry,
+			  XZTL_MEMPOOL_MCMD,
+			  ZTL_PRO_TUSER);
 	ucmd->completed = 1;
 
     // xztl_stats_inc (XZTL_STATS_READ_BYTES_U, size);
