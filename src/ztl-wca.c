@@ -360,7 +360,6 @@ static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 		ucmd->mcmd[cmd_i] = mcmd;
     }
 
-    pthread_spin_init(&ucmd->inflight_spin, 0);
 	for (cmd_i = 0; cmd_i < ncmd; cmd_i++){
 
 		ret = xztl_media_submit_io (ucmd->mcmd[cmd_i]);
@@ -420,7 +419,6 @@ FAILURE:
 
     if (ucmd->callback) {
 	ucmd->completed = 1;
-	pthread_spin_destroy (&ucmd->inflight_spin);
         ucmd->callback (ucmd);
     } else {
 	ucmd->completed = 1;
@@ -469,14 +467,6 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
 						    nsec, ucmd->prov_type);
 	goto FAILURE;
     }
-
-	// printf("\n");
-	// printf("Command id: %lu\n", ucmd->id);
-	// printf("Command size: %lu\n", ucmd->size);
-	// printf("Provisioning found n address: %lu\n", prov->naddr);
-	// for (int i = 0; i < prov->naddr; i++){
-	// 	printf("Zone identifier: %lu", prov->addr[i].g.zone);
-	// }
 
     /* We check the number of commands again based on the provisioning */
     ncmd = ztl_wca_ncmd_prov_based (prov);

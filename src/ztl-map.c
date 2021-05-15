@@ -440,6 +440,9 @@ static uint64_t map_read (uint64_t id)
 
     map_ent = &((struct app_map_entry *) cache_ent->buf)[ent_off];
 
+    printf("\nSectors per zone: %u\n", core.media->geo.sec_zn);
+    printf("Zone id: %u\n", map_ent->g.zone_id);
+    printf("Zone offset: %u\n", map_ent->g.zone_offset);
     ret = (core.media->geo.sec_zn * map_ent->g.zone_id + map_ent->g.zone_offset);
 
     // ZDEBUG (ZDEBUG_MAP, "  read succeed: ID: %lu, val (0x%lx/%d/%d)",
