@@ -152,6 +152,7 @@ static int znd_media_submit_write_asynch (struct xztl_io_mcmd *cmd)
 
     pthread_spin_lock (&tctx->qpair_spin);
 
+    printf("Submitting write to: %lu\n", slba);
     ret = xnvme_nvm_write(ctx, xnvme_dev_get_nsid(zndmedia.dev), slba, (uint16_t) cmd->nsec[sec_i] - 1, dbuf, NULL);
 
     pthread_spin_unlock (&tctx->qpair_spin);

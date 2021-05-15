@@ -159,6 +159,7 @@ static void ztl_wca_callback_mcmd (void *arg)
 				map.g.zone_id 		= ucmd->prov->addr->g.zone;
 				map.g.zone_offset 	= ucmd->prov->addr->g.sect - (core.media->geo.sec_zn * ucmd->prov->addr->g.zone);
 				map.g.n_sectors   	= ucmd->msec[0];
+                map.g.sector_offset = ucmd->size % core.media->geo.nbytes;
 				map.g.multi  		= 0;
 				ret = ztl()->map->upsert_fn (ucmd->id, map.addr, &old, 0);
 				if (ret)
@@ -254,8 +255,10 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
     nsec = ucmd->size / core.media->geo.nbytes;
 
     /* We support non-aligned buffers, but we will just provision another sector. */
-    if (ucmd->size % (core.media->geo.nbytes * ZTL_WCA_SEC_MCMD_MIN != 0))
+    if (ucmd->size % core.media->geo.nbytes){
         nsec++;
+        printf("\nMisalignment detected. Adding another sector. Size: %lu, nsec %lu\n", ucmd->size, nsec);
+    }
 
     // Effectively, the number of bytes of padding up to the next sector.
     misalign = nsec * core.media->geo.nbytes - ucmd->size;

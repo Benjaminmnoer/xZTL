@@ -109,6 +109,46 @@ static void test_zrocks_new (void)
     }
 }
 
+static void test_zrocks_read (void)
+{
+    uint32_t ids, offset;
+    uint64_t id;
+    int ret[TEST_N_BUFFERS];
+    size_t read_sz, size;
+
+    ids = TEST_N_BUFFERS;
+    read_sz = 1024 * 64; /* 64 KB */
+    size = TEST_BUFFER_SZ;
+
+    for (id = 0; id < ids; id++) {
+
+	/* Allocate DMA memory */
+	rbuf[id] = xztl_media_dma_alloc (size);
+	cunit_zrocks_assert_ptr ("xztl_media_dma_alloc", rbuf[id]);
+	if (!rbuf[id])
+	    continue;
+
+	memset (rbuf[id], 0x0, size);
+
+	offset = 0;
+	while (offset < size) {
+	    ret[id] = zrocks_read_obj (id + 1, offset, rbuf[id] + offset, read_sz);
+	    cunit_zrocks_assert_int ("zrocks_read_obj", ret[id]);
+	    if (ret[id])
+		printf ("Read error: ID %lu, offset %d, status: %x\n",
+							id + 1, offset, ret[id]);
+	    offset += read_sz;
+	}
+
+	ret[id] = test_zrocks_check_buffer (id, 0, TEST_BUFFER_SZ);
+	cunit_zrocks_assert_int ("zrocks_read_obj:check", ret[id]);
+	if (ret[id])
+	    printf ("Corruption: ID %lu, corrupted: %d bytes\n", id + 1, ret[id]);
+
+	xztl_media_dma_free (rbuf[id]);
+    }
+}
+
 int main (int argc, const char **argv)
 {
     int failed;
@@ -136,6 +176,8 @@ int main (int argc, const char **argv)
 		      test_zrocks_init) == NULL) ||
 	(CU_add_test (pSuite, "ZRocks New",
 		      test_zrocks_new) == NULL) ||
+	(CU_add_test (pSuite, "ZRocks Read",
+		      test_zrocks_read) == NULL) ||
         (CU_add_test (pSuite, "Close ZRocks",
 		      test_zrocks_exit) == NULL)) {
 	CU_cleanup_registry();

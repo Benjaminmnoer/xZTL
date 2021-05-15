@@ -50,24 +50,14 @@ void zrocks_free (void *ptr)
 static int __zrocks_write (struct xztl_io_ucmd *ucmd,
 			uint64_t id, void *buf, size_t size, uint16_t level)
 {
-    uint32_t misalign;
-    size_t new_sz, alignment;
-
-    alignment = ZNS_ALIGMENT * ZTL_WCA_SEC_MCMD_MIN;
-    misalign = size % alignment;
-
-    new_sz = (misalign != 0) ? size + (alignment - misalign) : size;
-
     if (ZROCKS_DEBUG)
-	log_infoa ("zrocks (write): ID %lu, level %d, size %lu, new size %lu, "
-		"aligment %lu, misalign %d\n", id, level, size, new_sz,
-		 alignment, misalign);
+	log_infoa ("zrocks (write): ID %lu, level %d, size %lu\n", id, level, size);
 
     ucmd->prov_type = level;
 
     ucmd->id        = id;
     ucmd->buf       = buf;
-    ucmd->size      = new_sz;
+    ucmd->size      = size;
     ucmd->status    = 0;
     ucmd->completed = 0;
     ucmd->callback  = NULL;
