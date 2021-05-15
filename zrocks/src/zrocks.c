@@ -157,10 +157,18 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
     ucmd->size = size;
 
     ret = ztl()->wca->submit_fn(ucmd);
-    if (ret)
-	log_erra ("zrocks: Read failure. ID %lu, off 0x%lx, sz %lu. ret %d",
-							    id, offset, size, ret);
-    return ret;
+    if (ret){
+        log_erra ("zrocks: Read failure. ID %lu, off 0x%lx, sz %lu. ret %d",
+                                    id, offset, size, ret);
+        return ret;
+    }
+
+    /* Wait for asynchronous command */
+    while (!ucmd->completed) {
+	usleep (1);
+    }
+
+    return 0;
 }
 
 int zrocks_read (uint64_t offset, void *buf, uint64_t size)
@@ -180,10 +188,17 @@ int zrocks_read (uint64_t offset, void *buf, uint64_t size)
 
     ret = ztl()->wca->submit_fn(ucmd);
     
-    if (ret)
+    if (ret){
 	log_erra ("zrocks: Read failure. off %lu, sz %lu. ret %d",
 						    	    offset, size, ret);
-    return ret;
+        return ret;
+    }
+
+    /* Wait for asynchronous command */
+    while (!ucmd->completed) {
+	usleep (1);
+    }
+    return 0;
 }
 
 int zrocks_delete (uint64_t id)
