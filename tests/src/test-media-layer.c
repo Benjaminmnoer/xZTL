@@ -34,7 +34,7 @@ static int test_media_zn_fn (struct xztl_zn_mcmd *cmd)
     return 0;
 }
 
-static void *test_media_dma_alloc (size_t size, uint64_t *phys)
+static void *test_media_dma_alloc (size_t size)
 {
     return malloc (size);
 }

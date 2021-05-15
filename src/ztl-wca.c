@@ -240,13 +240,62 @@ static void ztl_wca_poke_ctx (void) {
     }
 }
 
+static void ztl_wca_read_callback(void *arg)
+{
+    struct xztl_io_ucmd  *ucmd;
+    struct xztl_io_mcmd  *mcmd;
+    uint64_t to, from, size;
+
+    mcmd = (struct xztl_io_mcmd *) arg;
+    ucmd = (struct xztl_io_ucmd *) mcmd->opaque;
+
+    if (mcmd->status) {
+	ucmd->status = mcmd->status;
+    }
+
+    pthread_spin_lock (&ucmd->inflight_spin);
+    xztl_atomic_int16_update (&ucmd->ncb, ucmd->ncb + 1);
+    pthread_spin_unlock (&ucmd->inflight_spin);
+
+    if (mcmd->status)
+	ZDEBUG (ZDEBUG_WCA, "ztl-wca: Callback. (ID %lu, S %d/%d, C %d, WOFF 0x%lx). St: %d",
+						    ucmd->id,
+						    mcmd->sequence,
+						    ucmd->nmcmd,
+						    ucmd->ncb,
+						    ucmd->moffset[mcmd->sequence],
+						    mcmd->status);
+
+    // First command in the sequence
+    if (!mcmd->sequence) {
+        to = (uint64_t)ucmd->buf;
+        from = mcmd->prp[0] + ucmd->misalign;
+        size = (mcmd->nsec[0] * core.media->geo.nbytes) - ucmd->misalign;
+    } // Last command in the sequence  
+    else if (mcmd->sequence == ucmd->nmcmd - 1){
+        to = ((uint64_t)ucmd->buf) + ((ucmd->nmcmd * ZTL_READ_SEC_MCMD - mcmd->nsec[0]) * core.media->geo.nbytes) - ucmd->misalign;
+        from = mcmd->prp[0];
+        size = (mcmd->nsec[0] * core.media->geo.nbytes) - ucmd->misalign;
+    }
+    else {
+        to = ((uint64_t)ucmd->buf) + (mcmd->sequence * ZTL_READ_SEC_MCMD * core.media->geo.nbytes) - ucmd->misalign;
+        from = mcmd->prp[0];
+        size = (mcmd->nsec[0] * core.media->geo.nbytes);
+    }
+
+    memcpy ((void *)to, (char *) from, size);
+    xztl_mempool_put (mcmd->mp_cmd, XZTL_MEMPOOL_MCMD, ZTL_PRO_TUSER);
+}
+
 static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 {
 	struct xztl_mp_entry *mp_entry;
 	struct xztl_io_mcmd *mcmd;
 	uint64_t s_sec, obj_off = 0;
-	uint64_t sec_off, nsec, sec_end, misalign;
-    int ret, ncmd, cmd_i, ok = 0, nbytes, submitted;
+	uint64_t nsec, misalign;
+    int ret, ncmd, cmd_i, nbytes, submitted;
+    void *buffer;
+
 	nbytes = core.media->geo.nbytes;
 
 	if (!(ucmd->id || ucmd->offset)){
@@ -257,26 +306,27 @@ static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 	if (ucmd->app_md){
 		s_sec = ztl()->map->read_fn(ucmd->id);
 		obj_off = ucmd->obj_off;
+		misalign = 0;
 	} else {
 		s_sec = ucmd->offset / nbytes;
 		misalign = ucmd->offset % nbytes;
 	}
 
-	nsec = ucmd->size / nbytes;
+	nsec = (ucmd->size + misalign) / nbytes;
     if (ucmd->size % nbytes != 0)
 		nsec++;
 
-    /* Add a sector in case if read cross sector boundary */
-    sec_end = (s_sec + ucmd->size) / nbytes;
-    if ((s_sec + ucmd->size) / nbytes == 0)
-	sec_end--;
-    if (sec_end - s_sec + 1 > nsec)
-	nsec++;
-
     ncmd = nsec / ZTL_READ_SEC_MCMD;
     if (nsec % ZTL_READ_SEC_MCMD != 0)
-	ncmd++;
+		ncmd++;
 
+	ucmd->nmcmd = ncmd;
+	ucmd->completed = 0;
+	ucmd->ncb = 0;
+	ucmd->misalign = misalign;
+
+    buffer = xztl_media_dma_alloc(nsec * nbytes);
+    
     for (cmd_i = 0; cmd_i < ncmd; cmd_i++) {
 		mp_entry = xztl_mempool_get (XZTL_MEMPOOL_MCMD, ZTL_PRO_TUSER);
 		if (!mp_entry) {
@@ -288,50 +338,45 @@ static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 
 	    memset (mcmd, 0x0, sizeof (struct xztl_io_mcmd));
 	    mcmd->mp_cmd    = mp_entry;
-		
 		mcmd->opcode  = XZTL_CMD_READ;
+		mcmd->synch   = 0;
+		mcmd->submitted   = 0;
 		mcmd->sequence = cmd_i;
 		mcmd->sequence_zn = 0;
 		mcmd->naddr   = 1;
 		mcmd->status  = 0;
-		mcmd->synch   = 1;
 		mcmd->addr[0].addr = 0;
+		mcmd->addr[0].g.sect = s_sec + (cmd_i * ZTL_READ_SEC_MCMD);
 		mcmd->nsec[0] = (cmd_i == ncmd - 1) ?
 					nsec - (cmd_i * ZTL_READ_SEC_MCMD) :
 					ZTL_READ_SEC_MCMD;
 
-		mcmd->prp[0]  = (uint64_t) ucmd->buf +
+		mcmd->prp[0]  = (uint64_t) buffer +
 					(cmd_i * ZTL_READ_SEC_MCMD * nbytes);
 
-		mcmd->addr[0].g.sect = s_sec + (cmd_i * ZTL_READ_SEC_MCMD);
+		mcmd->callback = ztl_wca_read_callback;
 		mcmd->opaque    = ucmd;
+		mcmd->async_ctx = tctx;
 		ucmd->mcmd[cmd_i] = mcmd;
+    }
 
-		ret = xztl_media_submit_io (&mcmd);
-		mcmd->submitted = 1;
-		submitted++;
+    pthread_spin_init(&ucmd->inflight_spin, 0);
+	for (cmd_i = 0; cmd_i < ncmd; cmd_i++){
 
-		if (ret || mcmd->status) {
-			ok++;
-			printf("zrocks (__read) error: ret %d, status %x", ret, mcmd->status);
+		ret = xztl_media_submit_io (ucmd->mcmd[cmd_i]);
+		if (ret)
 			goto FAIL_SUBMIT;
-		}
-    }
-	
-    if (!ok) {
-	/* If I/O succeeded, we copy the data from the correct offset to the user */
-	memcpy (ucmd->buf, (char *) mp_entry->opaque + misalign, ucmd->size);
-    }
 
-	ucmd->completed = 1;
-
-    xztl_stats_inc (XZTL_STATS_READ_BYTES_U, ucmd->size);
-    xztl_stats_inc (XZTL_STATS_READ_UCMD, 1);
-
-	for (cmd_i = 0; cmd_i < ncmd; cmd_i++)
-	{
-		xztl_mempool_put (ucmd->mcmd[cmd_i]->mp_cmd, XZTL_MEMPOOL_MCMD, ZTL_PRO_TUSER);
+		ucmd->mcmd[cmd_i]->submitted = 1;
+		submitted++;
 	}
+
+    /* Poke the context for completions */
+    while (ucmd->ncb < ucmd->nmcmd) {
+	ztl_wca_poke_ctx ();
+	if (!STAILQ_EMPTY (&ucmd_head))
+	    break;
+    }
 
     return;
 FAIL_SUBMIT:
@@ -393,7 +438,8 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
     int ret, ncmd_zn, zncmd_i;
 
 	if (ucmd->opcode == XZTL_USER_WRITE){
-		return ztl_wca_process_read(ucmd);
+		ztl_wca_process_read(ucmd);
+		return;
 	}
 
     ZDEBUG (ZDEBUG_WCA, "ztl-wca: Processing user write. ID %lu", ucmd->id);

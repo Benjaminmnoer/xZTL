@@ -131,7 +131,7 @@ static void *test_append_th (void *args) {
     struct xztl_io_mcmd     *cmd;
     size_t   cmd_sz;
     uint32_t cmd_i, ncmd, zone_i;
-    uint64_t phys, sec_cmd;
+    uint64_t sec_cmd;
     char    *wbuf;
     int ret;
 
@@ -146,7 +146,7 @@ static void *test_append_th (void *args) {
 	goto EXIT;
 
     /* Allocate DMA memory (+1 slot) */
-    wbuf = xztl_media_dma_alloc (cmd_sz * ncmd + cmd_sz, &phys);
+    wbuf = xztl_media_dma_alloc (cmd_sz * ncmd + cmd_sz);
     if (!wbuf)
 	goto CTX;
 

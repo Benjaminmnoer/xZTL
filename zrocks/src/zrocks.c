@@ -39,8 +39,7 @@ static pthread_spinlock_t zrocks_mp_spin;
 
 void *zrocks_alloc (size_t size)
 {
-    uint64_t phys;
-    return xztl_media_dma_alloc (size, &phys);
+    return xztl_media_dma_alloc (size);
 }
 
 void zrocks_free (void *ptr)
@@ -142,7 +141,6 @@ int zrocks_write (void *buf, size_t size, uint16_t level,
 int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
 {
     int ret;
-    uint64_t objsec_off;
     struct xztl_io_ucmd ucmd;
 
     if (ZROCKS_DEBUG)
@@ -168,6 +166,9 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
     while (!ucmd.completed) {
 	usleep (1);
     }
+
+    xztl_stats_inc (XZTL_STATS_READ_BYTES_U, ucmd.size);
+    xztl_stats_inc (XZTL_STATS_READ_UCMD, 1);
 
     return 0;
 }
@@ -199,6 +200,10 @@ int zrocks_read (uint64_t offset, void *buf, uint64_t size)
     while (!ucmd.completed) {
 	usleep (1);
     }
+
+    xztl_stats_inc (XZTL_STATS_READ_BYTES_U, ucmd.size);
+    xztl_stats_inc (XZTL_STATS_READ_UCMD, 1);
+    
     return 0;
 }
 

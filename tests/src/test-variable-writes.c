@@ -83,7 +83,7 @@ static int test_variablew_check_buffer (uint32_t id, uint32_t off, uint32_t size
 static void test_variablew_new (void)
 {
     uint32_t ids;
-    uint64_t id, phys[TEST_N_BUFFERS];
+    uint64_t id;
     uint32_t size;
     uint8_t level;
     int ret[TEST_N_BUFFERS];
@@ -96,7 +96,7 @@ static void test_variablew_new (void)
     for (id = 0; id < ids; id++) {
 
         /* Allocate DMA memory */
-        wbuf[id] = xztl_media_dma_alloc (size, &phys[id]);
+        wbuf[id] = xztl_media_dma_alloc (size);
         cunit_variablew_assert_ptr ("xztl_media_dma_alloc", wbuf[id]);
 
         if (!wbuf[id])
@@ -115,7 +115,7 @@ static void test_variablew_new (void)
 static void test_variablew_read (void)
 {
     uint32_t ids, offset;
-    uint64_t id, phys[TEST_N_BUFFERS];
+    uint64_t id;
     int ret[TEST_N_BUFFERS];
     size_t read_sz, size;
 
@@ -126,7 +126,7 @@ static void test_variablew_read (void)
     for (id = 0; id < ids; id++) {
 
 	/* Allocate DMA memory */
-	rbuf[id] = xztl_media_dma_alloc (size, &phys[id]);
+	rbuf[id] = xztl_media_dma_alloc (size);
 	cunit_variablew_assert_ptr ("xztl_media_dma_alloc", rbuf[id]);
 	if (!rbuf[id])
 	    continue;
