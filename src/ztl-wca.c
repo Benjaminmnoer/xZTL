@@ -246,7 +246,7 @@ static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 	struct xztl_io_mcmd *mcmd;
 	uint64_t s_sec, obj_off = 0;
 	uint64_t sec_off, nsec, sec_end, misalign;
-    int ret, ncmd, cmd_i, ok = 0, nbytes;
+    int ret, ncmd, cmd_i, ok = 0, nbytes, submitted;
 	nbytes = core.media->geo.nbytes;
 
 	if (!(ucmd->id || ucmd->offset)){
@@ -284,10 +284,16 @@ static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 		goto FAIL_MP;
 		}
 
-		mcmd = (struct xztl_io_mcmd *) mp_entry->opaque;
+	    mcmd = (struct xztl_io_mcmd *) mp_entry->opaque;
+
+	    memset (mcmd, 0x0, sizeof (struct xztl_io_mcmd));
+	    mcmd->mp_cmd    = mp_entry;
 		
 		mcmd->opcode  = XZTL_CMD_READ;
+		mcmd->sequence = cmd_i;
+		mcmd->sequence_zn = 0;
 		mcmd->naddr   = 1;
+		mcmd->status  = 0;
 		mcmd->synch   = 1;
 		mcmd->addr[0].addr = 0;
 		mcmd->nsec[0] = (cmd_i == ncmd - 1) ?
@@ -298,27 +304,62 @@ static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 					(cmd_i * ZTL_READ_SEC_MCMD * nbytes);
 
 		mcmd->addr[0].g.sect = s_sec + (cmd_i * ZTL_READ_SEC_MCMD);
-		mcmd->status  = 0;
+		mcmd->opaque    = ucmd;
+		ucmd->mcmd[cmd_i] = mcmd;
 
 		ret = xztl_media_submit_io (&mcmd);
+		mcmd->submitted = 1;
+		submitted++;
+
 		if (ret || mcmd->status) {
 			ok++;
-			log_erra("zrocks (__read) error: ret %d, status %x", ret, mcmd->status);
-			goto FAILURE;
+			printf("zrocks (__read) error: ret %d, status %x", ret, mcmd->status);
+			goto FAIL_SUBMIT;
 		}
     }
-
-    // if (!ok) {
-	// /* If I/O succeeded, we copy the data from the correct offset to the user */
-	// memcpy (ucmd->buf, (char *) mp_entry->opaque + misalign, ucmd->size);
-    // }
+	
+    if (!ok) {
+	/* If I/O succeeded, we copy the data from the correct offset to the user */
+	memcpy (ucmd->buf, (char *) mp_entry->opaque + misalign, ucmd->size);
+    }
 
 	ucmd->completed = 1;
 
-    // xztl_stats_inc (XZTL_STATS_READ_BYTES_U, size);
-    // xztl_stats_inc (XZTL_STATS_READ_UCMD, 1);
+    xztl_stats_inc (XZTL_STATS_READ_BYTES_U, ucmd->size);
+    xztl_stats_inc (XZTL_STATS_READ_UCMD, 1);
+
+	for (cmd_i = 0; cmd_i < ncmd; cmd_i++)
+	{
+		xztl_mempool_put (ucmd->mcmd[cmd_i]->mp_cmd, XZTL_MEMPOOL_MCMD, ZTL_PRO_TUSER);
+	}
 
     return;
+FAIL_SUBMIT:
+    if (submitted) {
+	ucmd->status = XZTL_ZTL_WCA_S2_ERR;
+	for (cmd_i = 0; cmd_i < ncmd; cmd_i++) {
+	    if (!ucmd->mcmd[cmd_i]->submitted)
+		xztl_atomic_int16_update (&ucmd->ncb, ucmd->ncb + 1);
+	}
+
+	/* Check for completion in case of completion concurrence */
+	if (ucmd->ncb == ucmd->nmcmd) {
+	    ucmd->completed = 1;
+	}
+    } else {
+	cmd_i = ncmd;
+	goto FAIL_MP;
+    }
+
+    /* Poke the context for completions */
+    while (ucmd->ncb < ucmd->nmcmd) {
+	ztl_wca_poke_ctx ();
+	if (!STAILQ_EMPTY (&ucmd_head))
+	    break;
+    }
+
+    return;
+
 FAIL_MP:
     while (cmd_i) {
 	cmd_i--;
@@ -330,15 +371,15 @@ FAIL_MP:
     }
 
 FAILURE:
-	ucmd->status = XZTL_ZTL_WCA_S_ERR;
+    ucmd->status = XZTL_ZTL_WCA_S_ERR;
 
     if (ucmd->callback) {
-		ucmd->completed = 1;
+	ucmd->completed = 1;
+	pthread_spin_destroy (&ucmd->inflight_spin);
         ucmd->callback (ucmd);
     } else {
 	ucmd->completed = 1;
     }
-
 }
 
 static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
