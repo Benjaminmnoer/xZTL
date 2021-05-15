@@ -392,7 +392,7 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
     uint64_t boff;
     int ret, ncmd_zn, zncmd_i;
 
-	if (ucmd->opcode != XZTL_USER_WRITE){
+	if (ucmd->opcode == XZTL_USER_WRITE){
 		return ztl_wca_process_read(ucmd);
 	}
 

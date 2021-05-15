@@ -112,8 +112,8 @@ struct xztl_maddr {
 				   /* 512b sectors: 2 GB user buffers */
 
 enum xztl_user_opcodes {
-    XZTL_USER_READ      = 0x0,
-    XZTL_USER_WRITE     = 0x1
+    XZTL_USER_READ      = 0x1,
+    XZTL_USER_WRITE     = 0x2
 };
 
 struct xztl_io_ucmd {
