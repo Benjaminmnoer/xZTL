@@ -152,7 +152,7 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
     ucmd.opcode = XZTL_USER_READ;
     ucmd.app_md = 1;
     ucmd.id = id;
-    ucmd.offset = offset;
+    ucmd.obj_off = offset;
     ucmd.buf = buf;
     ucmd.size = size;
     ucmd.callback = NULL;
@@ -182,9 +182,8 @@ int zrocks_read (uint64_t offset, void *buf, uint64_t size)
 
     ucmd.opcode = XZTL_USER_READ;
     ucmd.app_md = 0;
-    ucmd.slba = offset;
+    ucmd.offset = offset;
     ucmd.size = size;
-    ucmd.offset = 0;
     ucmd.buf = buf;
     ucmd.callback = NULL;
 

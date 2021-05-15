@@ -117,10 +117,10 @@ enum xztl_user_opcodes {
 };
 
 struct xztl_io_ucmd {
-    /* User has to define slba or id if it is a read. */
     uint64_t 	   id;
-    uint64_t       slba; 
-    uint64_t       offset; // Within the data to be read
+    uint64_t       obj_off;
+
+    uint64_t       offset; // Within the drive (for reads)
 
     void	      *buf;
     size_t 	       size;
