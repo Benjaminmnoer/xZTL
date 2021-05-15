@@ -155,6 +155,7 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
     ucmd.offset = offset;
     ucmd.buf = buf;
     ucmd.size = size;
+    ucmd.callback = NULL;
 
     ret = ztl()->wca->submit_fn(&ucmd);
     if (ret){
@@ -185,6 +186,7 @@ int zrocks_read (uint64_t offset, void *buf, uint64_t size)
     ucmd.size = size;
     ucmd.offset = 0;
     ucmd.buf = buf;
+    ucmd.callback = NULL;
 
     ret = ztl()->wca->submit_fn(&ucmd);
     
