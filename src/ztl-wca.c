@@ -242,6 +242,92 @@ static void ztl_wca_poke_ctx (void) {
 
 static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 {
+	struct xztl_mp_entry *mp_entry;
+	struct xztl_io_mcmd *mcmd;
+	uint64_t slba;
+	uint64_t sec_off, nsec, sec_end, misalign;
+    int ret, ncmd, cmd_i, ok = 0, nbytes;
+	nbytes = core.media->geo.nbytes;
+
+	if (!(ucmd->id || ucmd->slba)){
+		log_erra("ztl-wca: Read command does not define id or slba.");
+		goto FAILURE;
+	}
+
+	if (ucmd->app_md){
+		slba = ztl()->map->read_fn(ucmd->id);
+	} else {
+		slba = ucmd->slba;
+	}
+
+	nsec = ucmd->size / nbytes;
+    if (ucmd->size % nbytes != 0)
+		nsec++;
+
+    sec_off  = ucmd->offset / nbytes;
+    misalign = ucmd->offset % nbytes;
+
+    /* Add a sector in case if read cross sector boundary */
+    sec_end = (ucmd->offset + ucmd->size) / nbytes;
+    if ((ucmd->offset + ucmd->size) / nbytes == 0)
+	sec_end--;
+    if (sec_end - sec_off + 1 > nsec)
+	nsec++;
+
+    mp_entry = xztl_mempool_get (XZTL_MEMPOOL_MCMD, 0);
+    if (!mp_entry) {
+		goto FAILURE;
+    }
+
+    ncmd = nsec / ZTL_READ_SEC_MCMD;
+    if (nsec % ZTL_READ_SEC_MCMD != 0)
+	ncmd++;
+
+    for (cmd_i = 0; cmd_i < ncmd; cmd_i++) {
+	struct xztl_io_mcmd cmd;
+
+	cmd.opcode  = XZTL_CMD_READ;
+	cmd.naddr   = 1;
+	cmd.synch   = 1;
+	cmd.addr[0].addr = 0;
+	cmd.nsec[0] = (cmd_i == ncmd - 1) ?
+			    nsec - (cmd_i * ZTL_READ_SEC_MCMD) :
+			    ZTL_READ_SEC_MCMD;
+
+	cmd.prp[0]  = (uint64_t) mp_entry->opaque +
+			    (cmd_i * ZTL_READ_SEC_MCMD * nbytes);
+
+	cmd.addr[0].g.sect = sec_off + (cmd_i * ZTL_READ_SEC_MCMD);
+	cmd.status  = 0;
+
+	ret = xztl_media_submit_io (&cmd);
+	if (ret || cmd.status) {
+	    ok++;
+	    log_erra("zrocks (__read) error: ret %d, status %x", ret, cmd.status);
+		goto FAILURE;
+	}
+    }
+    if (!ok) {
+	/* If I/O succeeded, we copy the data from the correct offset to the user */
+	memcpy (ucmd->buf, (char *) mp_entry->opaque + misalign, ucmd->size);
+    }
+
+    xztl_mempool_put (mp_entry, XZTL_MEMPOOL_MCMD, 0);
+
+    // xztl_stats_inc (XZTL_STATS_READ_BYTES_U, size);
+    // xztl_stats_inc (XZTL_STATS_READ_UCMD, 1);
+
+    return;
+
+FAILURE:
+	ucmd->status = XZTL_ZTL_WCA_S_ERR;
+
+    if (ucmd->callback) {
+		ucmd->completed = 1;
+        ucmd->callback (ucmd);
+    } else {
+	ucmd->completed = 1;
+    }
 
 }
 
@@ -255,7 +341,7 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
     uint64_t boff;
     int ret, ncmd_zn, zncmd_i;
 
-	if (ucmd->opcode == XZTL_USER_READ){
+	if (ucmd->opcode != XZTL_USER_WRITE){
 		return ztl_wca_process_read(ucmd);
 	}
 

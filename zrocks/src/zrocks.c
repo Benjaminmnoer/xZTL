@@ -139,101 +139,24 @@ int zrocks_write (void *buf, size_t size, uint16_t level,
     return 0;
 }
 
-static int __zrocks_read (uint64_t offset, void *buf, size_t size) {
-    struct xztl_mp_entry *mp_entry;
-    uint64_t sec_off, sec_size, sec_end, misalign;
-    int ret, ncmd, cmd_i, ok = 0;
-
-    sec_size = size / ZNS_ALIGMENT;
-    if (size % ZNS_ALIGMENT != 0)
-	sec_size++;
-
-    sec_off  = offset / ZNS_ALIGMENT;
-    misalign = offset % ZNS_ALIGMENT;
-
-    /* Add a sector in case if read cross sector boundary */
-    sec_end = (offset + size) / ZNS_ALIGMENT;
-    if ((offset + size) % ZNS_ALIGMENT == 0)
-	sec_end--;
-    if (sec_end - sec_off + 1 > sec_size)
-	sec_size++;
-
-    if (ZROCKS_DEBUG)
-	log_infoa ("zrocks (__read): sec_size %lu, sec_off %lx, misalign %lu, "
-			"nsec %lu\n", sec_size, sec_off, misalign, sec_size);
-
-    /* Return an error if read is larger the maximum size */
-    if (sec_size * ZNS_ALIGMENT > ZROCKS_MAX_READ_SZ)
-	return -1;
-
-    /* Get I/O buffer from mempool */
-    pthread_spin_lock (&zrocks_mp_spin);
-    mp_entry = xztl_mempool_get (ZROCKS_MEMORY, 0);
-    if (!mp_entry) {
-	pthread_spin_unlock (&zrocks_mp_spin);
-	return -1;
-    }
-    pthread_spin_unlock (&zrocks_mp_spin);
-
-    ncmd = sec_size / ZTL_READ_SEC_MCMD;
-    if (sec_size % ZTL_READ_SEC_MCMD != 0)
-	ncmd++;
-
-    #pragma omp parallel for num_threads(ncmd)
-    for (cmd_i = 0; cmd_i < ncmd; cmd_i++) {
-	struct xztl_io_mcmd cmd;
-
-	cmd.opcode  = XZTL_CMD_READ;
-	cmd.naddr   = 1;
-	cmd.synch   = 1;
-	cmd.addr[0].addr = 0;
-	cmd.nsec[0] = (cmd_i == ncmd - 1) ?
-			    sec_size - (cmd_i * ZTL_READ_SEC_MCMD) :
-			    ZTL_READ_SEC_MCMD;
-
-	cmd.prp[0]  = (uint64_t) mp_entry->opaque +
-			    (cmd_i * ZTL_READ_SEC_MCMD * ZNS_ALIGMENT);
-
-	cmd.addr[0].g.sect = sec_off + (cmd_i * ZTL_READ_SEC_MCMD);
-	cmd.status  = 0;
-
-	ret = xztl_media_submit_io (&cmd);
-	if (ret || cmd.status) {
-	    ok++;
-	    log_erra("zrocks (__read) error: ret %d, status %x", ret, cmd.status);
-	}
-    }
-    if (!ok) {
-	/* If I/O succeeded, we copy the data from the correct offset to the user */
-	memcpy (buf, (char *) mp_entry->opaque + misalign, size);
-    }
-
-    pthread_spin_lock (&zrocks_mp_spin);
-    xztl_mempool_put (mp_entry, ZROCKS_MEMORY, 0);
-    pthread_spin_unlock (&zrocks_mp_spin);
-
-    xztl_stats_inc (XZTL_STATS_READ_BYTES_U, size);
-    xztl_stats_inc (XZTL_STATS_READ_UCMD, 1);
-
-    return ok;
-}
-
 int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
 {
     int ret;
     uint64_t objsec_off;
+    struct xztl_io_ucmd *ucmd;
 
     if (ZROCKS_DEBUG)
 	log_infoa ("zrocks (read_obj): ID %lu, off %lu, size %lu\n",
 							id, offset, size);
 
-    /* This assumes a single zone offset per object */
-    objsec_off  = ztl()->map->read_fn (id);
+    ucmd->opcode = XZTL_USER_READ;
+    ucmd->app_md = 1;
+    ucmd->id = id;
+    ucmd->offset = offset;
+    ucmd->buf = buf;
+    ucmd->size = size;
 
-    if (ZROCKS_DEBUG)
-	log_infoa ("  objsec_off %lx, userbytes_off %lu", objsec_off, offset);
-
-    ret = __zrocks_read ((objsec_off * ZNS_ALIGMENT) + offset, buf, size);
+    ret = ztl()->wca->submit_fn(ucmd);
     if (ret)
 	log_erra ("zrocks: Read failure. ID %lu, off 0x%lx, sz %lu. ret %d",
 							    id, offset, size, ret);
@@ -243,11 +166,20 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
 int zrocks_read (uint64_t offset, void *buf, uint64_t size)
 {
     int ret;
+    struct xztl_io_ucmd *ucmd;
 
     if (ZROCKS_DEBUG)
 	log_infoa ("zrocks (read): off %lu, size %lu\n", offset, size);
 
-    ret = __zrocks_read (offset, buf, size);
+    ucmd->opcode = XZTL_USER_READ;
+    ucmd->app_md = 0;
+    ucmd->slba = offset;
+    ucmd->size = size;
+    ucmd->offset = 0;
+    ucmd->buf = buf;
+
+    ret = ztl()->wca->submit_fn(ucmd);
+    
     if (ret)
 	log_erra ("zrocks: Read failure. off %lu, sz %lu. ret %d",
 						    	    offset, size, ret);

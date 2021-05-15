@@ -112,12 +112,16 @@ struct xztl_maddr {
 				   /* 512b sectors: 2 GB user buffers */
 
 enum xztl_user_opcodes {
-    XZTL_USER_READ = 0x0,
-    XZTL_USER_WRITE = 0x1
+    XZTL_USER_READ      = 0x0,
+    XZTL_USER_WRITE     = 0x1
 };
 
 struct xztl_io_ucmd {
+    /* User has to define slba or id if it is a read. */
     uint64_t 	   id;
+    uint64_t       slba; 
+    uint64_t       offset; // Within the data to be read
+
     void	      *buf;
     size_t 	       size;
     uint16_t 	   prov_type;
