@@ -237,7 +237,7 @@ typedef void     (app_map_exit) (void);
 typedef void     (app_map_persist) (void);
 typedef int      (app_map_upsert) (uint64_t id, uint64_t addr,
 					uint64_t *old, uint64_t old_caller);
-typedef uint64_t (app_map_read) (uint64_t id);
+typedef struct app_map_entry *(app_map_read) (uint64_t id);
 typedef int      (app_map_upsert_md) (uint64_t index, uint64_t addr,
 							uint64_t old_addr);
 

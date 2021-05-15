@@ -419,7 +419,7 @@ static int map_upsert (uint64_t id, uint64_t val, uint64_t *old,
     return 0;
 }
 
-static uint64_t map_read (uint64_t id)
+static struct app_map_entry *map_read (uint64_t id)
 {
     struct map_cache_entry *cache_ent;
     struct app_map_entry *map_ent;
@@ -429,26 +429,21 @@ static uint64_t map_read (uint64_t id)
     ent_off = id % map_ent_per_pg;
     if (ent_off >= map_ent_per_pg) {
         log_erra ("ztl-map: read. Entry offset out of bounds. ID %lu", id);
-        return AND64;
+        return NULL;
     }
 
     ZDEBUG (ZDEBUG_MAP, "ztl-map: read. ID: %lu, off %d.", id, ent_off);
 
     cache_ent = map_get_cache_entry (id);
     if (!cache_ent)
-        return AND64;
+        return NULL;
 
     map_ent = &((struct app_map_entry *) cache_ent->buf)[ent_off];
-
-    printf("\nSectors per zone: %u\n", core.media->geo.sec_zn);
-    printf("Zone id: %u\n", map_ent->g.zone_id);
-    printf("Zone offset: %u\n", map_ent->g.zone_offset);
-    ret = (core.media->geo.sec_zn * map_ent->g.zone_id + map_ent->g.zone_offset);
 
     // ZDEBUG (ZDEBUG_MAP, "  read succeed: ID: %lu, val (0x%lx/%d/%d)",
 	//     id, (uint64_t) map_ent->g.offset, map_ent->g.nsec, map_ent->g.multi);
 
-    return ret;
+    return map_ent;
 }
 
 static struct app_map_mod libztl_map = {

@@ -289,6 +289,7 @@ static void ztl_wca_read_callback(void *arg)
 
 static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 {
+    struct app_map_entry *map_entry;
 	struct xztl_mp_entry *mp_entry;
 	struct xztl_io_mcmd *mcmd;
 	uint64_t s_sec, obj_off = 0;
@@ -304,7 +305,8 @@ static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
 	}
 
 	if (ucmd->app_md){
-		s_sec = ztl()->map->read_fn(ucmd->id);
+        map_entry = ztl()->map->read_fn(ucmd->id);
+		s_sec = map_entry->g.zone_id * core.media->geo.sec_zn + map_entry->g.zone_offset;
 		obj_off = ucmd->obj_off;
 		misalign = 0;
 	} else {

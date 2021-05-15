@@ -107,6 +107,7 @@ static void test_ztl_pro_new_free (void)
 
 static void test_ztl_map_upsert_read (void)
 {
+    struct app_map_entry entry;
     uint64_t id, val, count, interval, old;
     int ret;
 
@@ -114,12 +115,14 @@ static void test_ztl_map_upsert_read (void)
     interval = 1;
 
     for (id = 1; id <= count; id++) {
-	ret = ztl()->map->upsert_fn (id * interval, id * interval, &old, 0);
+        entry.g.zone_id = id * interval / 4096;
+        entry.g.zone_offset = id * interval % 4096;
+	ret = ztl()->map->upsert_fn (id * interval, entry.addr, &old, 0);
 	cunit_ztl_assert_int ("ztl()->map->upsert_fn", ret);
     }
 
     for (id = 1; id <= count; id++) {
-	val = ztl()->map->read_fn (id * interval);
+	val = ztl()->map->read_fn (id * interval)->addr;
 	cunit_ztl_assert_int_equal ("ztl()->map->read", val, id * interval);
     }
 
@@ -131,7 +134,7 @@ static void test_ztl_map_upsert_read (void)
     cunit_ztl_assert_int ("ztl()->map->upsert_fn", ret);
     cunit_ztl_assert_int_equal ("ztl()->map->upsert_fn:old", old, id);
 
-    old = ztl()->map->read_fn (id);
+    old = ztl()->map->read_fn (id)->addr;
     cunit_ztl_assert_int_equal ("ztl()->map->read", old, val);
 }
 
