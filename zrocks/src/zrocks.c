@@ -143,20 +143,20 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
 {
     int ret;
     uint64_t objsec_off;
-    struct xztl_io_ucmd *ucmd;
+    struct xztl_io_ucmd ucmd;
 
     if (ZROCKS_DEBUG)
 	log_infoa ("zrocks (read_obj): ID %lu, off %lu, size %lu\n",
 							id, offset, size);
 
-    ucmd->opcode = XZTL_USER_READ;
-    ucmd->app_md = 1;
-    ucmd->id = id;
-    ucmd->offset = offset;
-    ucmd->buf = buf;
-    ucmd->size = size;
+    ucmd.opcode = XZTL_USER_READ;
+    ucmd.app_md = 1;
+    ucmd.id = id;
+    ucmd.offset = offset;
+    ucmd.buf = buf;
+    ucmd.size = size;
 
-    ret = ztl()->wca->submit_fn(ucmd);
+    ret = ztl()->wca->submit_fn(&ucmd);
     if (ret){
         log_erra ("zrocks: Read failure. ID %lu, off 0x%lx, sz %lu. ret %d",
                                     id, offset, size, ret);
@@ -164,7 +164,7 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
     }
 
     /* Wait for asynchronous command */
-    while (!ucmd->completed) {
+    while (!ucmd.completed) {
 	usleep (1);
     }
 
@@ -174,19 +174,19 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
 int zrocks_read (uint64_t offset, void *buf, uint64_t size)
 {
     int ret;
-    struct xztl_io_ucmd *ucmd;
+    struct xztl_io_ucmd ucmd;
 
     if (ZROCKS_DEBUG)
 	log_infoa ("zrocks (read): off %lu, size %lu\n", offset, size);
 
-    ucmd->opcode = XZTL_USER_READ;
-    ucmd->app_md = 0;
-    ucmd->slba = offset;
-    ucmd->size = size;
-    ucmd->offset = 0;
-    ucmd->buf = buf;
+    ucmd.opcode = XZTL_USER_READ;
+    ucmd.app_md = 0;
+    ucmd.slba = offset;
+    ucmd.size = size;
+    ucmd.offset = 0;
+    ucmd.buf = buf;
 
-    ret = ztl()->wca->submit_fn(ucmd);
+    ret = ztl()->wca->submit_fn(&ucmd);
     
     if (ret){
 	log_erra ("zrocks: Read failure. off %lu, sz %lu. ret %d",
@@ -195,7 +195,7 @@ int zrocks_read (uint64_t offset, void *buf, uint64_t size)
     }
 
     /* Wait for asynchronous command */
-    while (!ucmd->completed) {
+    while (!ucmd.completed) {
 	usleep (1);
     }
     return 0;
