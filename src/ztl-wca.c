@@ -246,19 +246,19 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
     struct xztl_io_mcmd *mcmd;
     uint32_t nsec, nsec_zn, ncmd, cmd_i, zn_i, submitted;
     int zn_cmd_id[ZTL_PRO_STRIPE * 2];
-    uint64_t boff;
+    uint64_t boff, misalign;
     int ret, ncmd_zn, zncmd_i;
 
     ZDEBUG (ZDEBUG_WCA, "ztl-wca: Processing user write. ID %lu", ucmd->id);
 
     nsec = ucmd->size / core.media->geo.nbytes;
 
-    /* We do not support non-aligned buffers */
-    if (ucmd->size % (core.media->geo.nbytes * ZTL_WCA_SEC_MCMD_MIN != 0)) {
-	log_erra ("ztl-wca: Buffer is not aligned to %d bytes: %lu bytes.",
-		    core.media->geo.nbytes * ZTL_WCA_SEC_MCMD_MIN, ucmd->size);
-	goto FAILURE;
-    }
+    /* We support non-aligned buffers, but we will just provision another sector. */
+    if (ucmd->size % (core.media->geo.nbytes * ZTL_WCA_SEC_MCMD_MIN != 0))
+        nsec++;
+
+    // Effectively, the number of bytes of padding up to the next sector.
+    misalign = nsec * core.media->geo.nbytes - ucmd->size;
 
     /* First we check the number of commands based on ZTL_WCA_SEC_MCMD */
     ncmd = nsec / ZTL_WCA_SEC_MCMD;
