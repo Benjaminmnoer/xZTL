@@ -207,11 +207,9 @@ static void test_znd_asynch_ctx (void)
 static void test_znd_dma_memory (void)
 {
     void *buf;
-    uint64_t phys;
 
-    buf = xztl_media_dma_alloc (1024, &phys);
+    buf = xztl_media_dma_alloc (1024);
     cunit_znd_assert_ptr ("xztl_media_dma_alloc", buf);
-    cunit_znd_assert_ptr ("xztl_media_dma_alloc:check-phys", (void *) phys);
 
     if (buf) {
 	xztl_media_dma_free (buf);
@@ -249,7 +247,7 @@ static void test_znd_append_zone (void)
     struct xztl_io_mcmd     *cmd;
     struct xztl_mthread_ctx *tctx;
     uint16_t tid, ents, nlbas, zone;
-    uint64_t phys, bsize;
+    uint64_t bsize;
     void *wbuf;
     int ret;
 
@@ -278,7 +276,7 @@ static void test_znd_append_zone (void)
 			    "xztl_media_submit_znm:reset");
 
     /* Allocate DMA memory */
-    wbuf = xztl_media_dma_alloc (bsize, &phys);
+    wbuf = xztl_media_dma_alloc (bsize);
     cunit_znd_assert_ptr ("xztl_media_dma_alloc", wbuf);
     if (!wbuf)
 	goto CTX;
@@ -332,7 +330,7 @@ static void test_znd_read_zone (void)
     struct xztl_io_mcmd     *cmd;
     struct xztl_mthread_ctx *tctx;
     uint16_t tid, ents, nlbas, zone;
-    uint64_t phys, bsize;
+    uint64_t bsize;
     void *wbuf;
     int ret;
 
@@ -355,7 +353,7 @@ static void test_znd_read_zone (void)
 	goto MP;
 
     /* Allocate DMA memory */
-    wbuf = xztl_media_dma_alloc (bsize, &phys);
+    wbuf = xztl_media_dma_alloc (bsize);
     cunit_znd_assert_ptr ("xztl_media_dma_alloc", wbuf);
     if (!wbuf)
 	goto CTX;

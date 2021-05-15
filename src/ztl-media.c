@@ -268,9 +268,9 @@ static int znd_media_zone_mgmt (struct xztl_zn_mcmd *cmd)
     return XZTL_OK;
 }
 
-static void *znd_media_dma_alloc (size_t size, uint64_t *phys)
+static void *znd_media_dma_alloc (size_t size)
 {
-    return xnvme_buf_phys_alloc (zndmedia.dev, size, phys);
+    return xnvme_buf_alloc (zndmedia.dev, size);
 }
 
 static void znd_media_dma_free (void *ptr)

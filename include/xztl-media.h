@@ -163,7 +163,7 @@ struct xztl_mgeo {
 
 typedef int   (xztl_media_io_fn)        (struct xztl_io_mcmd *cmd);
 typedef int   (xztl_media_zn_fn)        (struct xztl_zn_mcmd *cmd);
-typedef void *(xztl_media_dma_alloc_fn) (size_t size, uint64_t *phys);
+typedef void *(xztl_media_dma_alloc_fn) (size_t size);
 typedef void  (xztl_media_dma_free_fn)  (void *ptr);
 typedef int   (xztl_media_cmd_fn)	(struct xztl_misc_cmd *cmd);
 

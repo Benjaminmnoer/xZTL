@@ -206,7 +206,7 @@ int xztl_init (const char *device_name);
 int xztl_exit (void);
 
 /* Media functions */
-void *xztl_media_dma_alloc   (size_t bytes, uint64_t *phys);
+void *xztl_media_dma_alloc   (size_t bytes);
 void  xztl_media_dma_free    (void *ptr);
 int   xztl_media_submit_zn   (struct xztl_zn_mcmd *cmd);
 int   xztl_media_submit_misc (struct xztl_misc_cmd *cmd);

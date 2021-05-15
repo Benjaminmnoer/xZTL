@@ -83,9 +83,9 @@ void xztl_print_mcmd (struct xztl_io_mcmd *cmd)
 
 static xztl_register_media_fn *media_fn = NULL;
 
-void *xztl_media_dma_alloc (size_t bytes, uint64_t *phys)
+void *xztl_media_dma_alloc (size_t bytes)
 {
-    return core.media->dma_alloc (bytes, phys);
+    return core.media->dma_alloc (bytes);
 }
 
 void xztl_media_dma_free (void *ptr)

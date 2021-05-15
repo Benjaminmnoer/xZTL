@@ -39,8 +39,7 @@ static pthread_spinlock_t zrocks_mp_spin;
 
 void *zrocks_alloc (size_t size)
 {
-    uint64_t phys;
-    return xztl_media_dma_alloc (size, &phys);
+    return xztl_media_dma_alloc (size);
 }
 
 void zrocks_free (void *ptr)
