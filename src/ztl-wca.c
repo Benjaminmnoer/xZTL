@@ -313,6 +313,7 @@ static void ztl_wca_process_read (struct xztl_io_ucmd *ucmd)
     }
 
     xztl_mempool_put (mp_entry, XZTL_MEMPOOL_MCMD, 0);
+	ucmd->completed = 1;
 
     // xztl_stats_inc (XZTL_STATS_READ_BYTES_U, size);
     // xztl_stats_inc (XZTL_STATS_READ_UCMD, 1);
