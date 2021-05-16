@@ -11,11 +11,13 @@
 /* Number of buffers to write */
 #define WRITE_COUNT      (1024 * 2) // 4GB
 
+#define N_THREADS 16
+
 static const char **devname;
 
 static uint64_t buffer_sz = WRITE_TBUFFER_SZ;
 static uint64_t nwrites   = WRITE_COUNT;
-static uint64_t nthreads  = READ_NTHREADS;
+static uint64_t nthreads  = N_THREADS;
 
 static struct zrocks_map **map = NULL;
 static uint16_t *pieces = NULL;
