@@ -220,7 +220,7 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
     map_entry = ztl()->map->read_fn (id);
     zone_sec  = map_entry->g.zone_id * core.media->geo.sec_zn + map_entry->g.zone_offset;
 
-    if ((zone_sec * core.media->geo.nbytes) + size > zone_sec + (map_entry->g.n_sectors * core.media->geo.nbytes) + (core.media->geo.nbytes - map_entry->g.sector_offset)){
+    if ((zone_sec * core.media->geo.nbytes) + size > (zone_sec * core.media->geo.nbytes) + (map_entry->g.n_sectors * core.media->geo.nbytes) + (core.media->geo.nbytes - map_entry->g.sector_offset)){
         printf("Read exceeds object boundaries. ID: %lu, zone_sec: %lu, size: %lu, n_sectors: %lu, sector offset: %lu\n", id, zone_sec, size, map_entry->g.n_sectors, map_entry->g.sector_offset);
         return -1;
     }
