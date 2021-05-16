@@ -210,7 +210,7 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
 {
     int ret;
     struct app_map_entry *map_entry;
-    uint64_t objsec_off;
+    uint64_t zone_sec;
 
     if (ZROCKS_DEBUG)
 	log_infoa ("zrocks (read_obj): ID %lu, off %lu, size %lu\n",
@@ -218,12 +218,17 @@ int zrocks_read_obj (uint64_t id, uint64_t offset, void *buf, size_t size)
 
     /* This assumes a single zone offset per object */
     map_entry = ztl()->map->read_fn (id);
-    objsec_off  = map_entry->g.zone_id * core.media->geo.sec_zn + map_entry->g.zone_offset;
+    zone_sec  = map_entry->g.zone_id * core.media->geo.sec_zn + map_entry->g.zone_offset;
+
+    if (zone_sec + size > zone_sec + (map_entry->g.n_sectors * core.media->geo.nbytes) - (core.media->geo.nbytes - map_entry->g.sector_offset)){
+        printf("Read exceeds object boundaries. ID: %lu, zone_sec: %lu, size: %lu, n_sectors: %lu, sector offset: %lu\n", id, zone_sec, size, map_entry->g.n_sectors, map_entry->g.sector_offset);
+        return -1;
+    }
 
     if (ZROCKS_DEBUG)
-	log_infoa ("  objsec_off %lx, userbytes_off %lu", objsec_off, offset);
+	log_infoa ("  objsec_off %lx, userbytes_off %lu", zone_sec, offset);
 
-    ret = __zrocks_read ((objsec_off * ZNS_ALIGMENT) + offset, buf, size);
+    ret = __zrocks_read ((zone_sec * ZNS_ALIGMENT) + offset, buf, size);
     if (ret)
 	log_erra ("zrocks: Read failure. ID %lu, off 0x%lx, sz %lu. ret %d",
 							    id, offset, size, ret);
