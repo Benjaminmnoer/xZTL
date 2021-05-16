@@ -57,7 +57,7 @@ set(ZROCKS_TESTS
     ${PROJECT_SOURCE_DIR}/src/test-variable-large-worst.c
     ${PROJECT_SOURCE_DIR}/src/test-variable-small-best.c
     ${PROJECT_SOURCE_DIR}/src/test-variable-small-worst.c
-    ${PROJECT_SOURCE_DIR}/src/test-variable-throughput.c
+    ${PROJECT_SOURCE_DIR}/src/test-object-throughput.c
 )
 foreach(SRC_FN ${ZROCKS_TESTS})
     get_filename_component(SRC_FN_WE ${SRC_FN} NAME_WE)

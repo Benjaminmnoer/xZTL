@@ -11,15 +11,6 @@
 /* Number of buffers to write */
 #define WRITE_COUNT      (1024 * 2) // 4GB
 
-/* Parallel reads */
-#define READ_NTHREADS    16
-
-/* Size of each read command */
-#define READ_SZ        (16 * ZNS_ALIGMENT)
-
-/* Read Iterations */
-#define READ_ITERATIONS  16
-
 static const char **devname;
 
 static uint64_t buffer_sz = WRITE_TBUFFER_SZ;
@@ -125,74 +116,6 @@ FREE:
     }
 }
 
-static void test_zrocksrw_read (void)
-{
-    void *buf[nthreads];
-    uint64_t bufi, th_i, it;
-
-    struct timespec ts_s;
-    struct timespec ts_e;
-    uint64_t start_ns;
-    uint64_t end_ns;
-    uint64_t read_gl[nthreads];
-    double seconds, mb;
-
-    for (bufi = 0; bufi < nthreads; bufi++) {
-	buf[bufi] = zrocks_alloc (WRITE_TBUFFER_SZ);
-	cunit_zrocksrw_assert_ptr ("zrocksrw_read:alloc", buf[bufi]);
-	if (!buf[bufi])
-	    goto FREE;
-    }
-
-    memset (read_gl, 0x0, sizeof(uint64_t) * nthreads);
-    GET_NANOSECONDS(start_ns, ts_s);
-
-    printf ("\n");
-
-    #pragma omp parallel for num_threads(nthreads)
-    for (th_i = 0; th_i < nthreads; th_i++) {
-
-	for (it = 0; it < READ_ITERATIONS; it++) {
-	    int ret;
-	    uint64_t offset, size, read;
-
-	    size = WRITE_TBUFFER_SZ;
-	    offset = 0;
-	    read = 0;
-
-	    while (size) {
-		ret = zrocks_read_obj (th_i, offset, (char *) buf[th_i] + read, (size > READ_SZ) ? READ_SZ : size);
-		cunit_zrocksrw_assert_int ("zrocksrw_read:read", ret);
-
-		offset += READ_SZ;
-		read += READ_SZ;
-		read_gl[th_i] += READ_SZ;
-		size -= READ_SZ;
-	    }
-	}
-    }
-
-    GET_NANOSECONDS(end_ns, ts_e);
-    seconds = (double) (end_ns - start_ns) / (double) 1000000000;
-
-    mb = 0;
-    for (th_i = 0; th_i < nthreads; th_i++)
-	mb += read_gl[th_i];
-
-    mb = mb / (double) 1024 / (double) 1024;
-
-    printf ("\n");
-    printf ("Read data: %.2lf MB\n", mb);
-    printf ("Elapsed time: %.4lf sec\n", seconds);
-    printf ("Bandwidth: %.4lf MB/s\n", mb / seconds);
-
-FREE:
-    while (bufi) {
-	bufi--;
-	zrocks_free (buf[bufi]);
-    }
-}
-
 int main (int argc, const char **argv)
 {
     int failed;
@@ -241,8 +164,6 @@ int main (int argc, const char **argv)
 		      test_zrocksrw_init) == NULL) ||
         (CU_add_test (pSuite, "Write Bandwidth",
 		      test_zrocksrw_write) == NULL) ||
-        (CU_add_test (pSuite, "Read Bandwidth",
-		      test_zrocksrw_read) == NULL) ||
         (CU_add_test (pSuite, "Close ZRocks",
 		      test_zrocksrw_exit) == NULL)) {
 	failed = 1;
