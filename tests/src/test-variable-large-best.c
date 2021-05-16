@@ -1,3 +1,7 @@
+/* This test case is to test variable size writes in xZTL, using ZRocks as an interface.
+ * The test is designed for large object writes, where only a very small of the last sector is padding, 
+ * e.g., the best case scenario for variable writes.
+ */
 #include <omp.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -8,12 +12,9 @@
 /* Number of Objects */
 #define TEST_N_BUFFERS 1024
 
-/* Number of random objects to read */
-#define TEST_RANDOM_ID 2
-
 /* Object Size */
-/* 4097 bytes, meaning just above sector size. This is to show the worst case scenario.  */
-#define TEST_BUFFER_SZ (4097) 
+/* 12 MB - 64 bytes, meaning just below sector size (and zone size in the tested system). This is to show the best case scenario.  */
+#define TEST_BUFFER_SZ (1024*1024*12 - 64) 
 
 static uint8_t *wbuf[TEST_N_BUFFERS];
 static uint8_t *rbuf[TEST_N_BUFFERS];
