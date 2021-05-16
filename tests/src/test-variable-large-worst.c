@@ -134,7 +134,7 @@ static void test_zrocks_read (void)
 
 	offset = 0;
 	while (offset < size) {
-	    ret[id] = zrocks_read_obj (id + 1, offset, rbuf[id] + offset, read_sz);
+	    ret[id] = zrocks_read_obj (id + 1, offset, rbuf[id] + offset, (size - offset < read_sz) ? size - offset : read_sz);
 	    cunit_zrocks_assert_int ("zrocks_read_obj", ret[id]);
 	    if (ret[id])
 		printf ("Read error: ID %lu, offset %d, status: %x\n",
