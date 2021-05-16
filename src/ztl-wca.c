@@ -257,7 +257,7 @@ static void ztl_wca_process_ucmd (struct xztl_io_ucmd *ucmd)
     /* We support non-aligned buffers, but we will just provision another sector. */
     if (ucmd->size % core.media->geo.nbytes){
         nsec++;
-        printf("\nMisalignment detected. Adding another sector. Size: %lu, nsec %lu\n", ucmd->size, nsec);
+        log_infoa("\nMisalignment detected. Adding another sector. Size: %lu, nsec %lu\n", ucmd->size, nsec);
     }
 
     // Effectively, the number of bytes of padding up to the next sector.
