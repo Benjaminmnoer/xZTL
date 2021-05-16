@@ -119,6 +119,7 @@ static void test_zrocks_read (void)
     size_t read_sz, size;
 
     ids = TEST_N_BUFFERS;
+    read_sz = 1024 * 64; /* 64 KB */
     size = TEST_BUFFER_SZ;
 
     for (id = 0; id < ids; id++) {
@@ -132,13 +133,16 @@ static void test_zrocks_read (void)
 	memset (rbuf[id], 0x0, size);
 
 	offset = 0;
-    ret[id] = zrocks_read_obj (id + 1, offset, rbuf[id] + offset, size);
-    cunit_zrocks_assert_int ("zrocks_read_obj", ret[id]);
-    if (ret[id])
-    printf ("Read error: ID %lu, offset %d, status: %x\n",
-                        id + 1, offset, ret[id]);
+	while (offset < size) {
+	    ret[id] = zrocks_read_obj (id + 1, offset, rbuf[id] + offset, read_sz);
+	    cunit_zrocks_assert_int ("zrocks_read_obj", ret[id]);
+	    if (ret[id])
+		printf ("Read error: ID %lu, offset %d, status: %x\n",
+							id + 1, offset, ret[id]);
+	    offset += read_sz;
+	}
 
-	ret[id] = test_zrocks_check_buffer (id, 0, size);
+	ret[id] = test_zrocks_check_buffer (id, 0, TEST_BUFFER_SZ);
 	cunit_zrocks_assert_int ("zrocks_read_obj:check", ret[id]);
 	if (ret[id])
 	    printf ("Corruption: ID %lu, corrupted: %d bytes\n", id + 1, ret[id]);
