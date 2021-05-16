@@ -14,7 +14,7 @@
 
 /* Object Size */
 /* 12 MB - 64 bytes, meaning just below sector size (and zone size in the tested system). This is to show the best case scenario.  */
-#define TEST_BUFFER_SZ (1024*1024*12 - 64) 
+#define TEST_BUFFER_SZ (1024*1024*12 - 4160) 
 
 static uint8_t *wbuf[TEST_N_BUFFERS];
 static uint8_t *rbuf[TEST_N_BUFFERS];
