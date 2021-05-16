@@ -6,13 +6,14 @@
 #include "CUnit/Basic.h"
 
 /* Number of Objects */
-#define TEST_N_BUFFERS 2
+#define TEST_N_BUFFERS 1024
 
 /* Number of random objects to read */
 #define TEST_RANDOM_ID 2
 
 /* Object Size */
-#define TEST_BUFFER_SZ (1024 * 5) /* 5 KB */
+/* 4097 bytes, meaning just above sector size. This is to show the worst case scenario.  */
+#define TEST_BUFFER_SZ (4097) 
 
 static uint8_t *wbuf[TEST_N_BUFFERS];
 static uint8_t *rbuf[TEST_N_BUFFERS];
@@ -117,7 +118,6 @@ static void test_zrocks_read (void)
     size_t read_sz, size;
 
     ids = TEST_N_BUFFERS;
-    read_sz = 1024 * 64; /* 64 KB */
     size = TEST_BUFFER_SZ;
 
     for (id = 0; id < ids; id++) {
@@ -131,16 +131,13 @@ static void test_zrocks_read (void)
 	memset (rbuf[id], 0x0, size);
 
 	offset = 0;
-	while (offset < size) {
-	    ret[id] = zrocks_read_obj (id + 1, offset, rbuf[id] + offset, read_sz);
-	    cunit_zrocks_assert_int ("zrocks_read_obj", ret[id]);
-	    if (ret[id])
-		printf ("Read error: ID %lu, offset %d, status: %x\n",
-							id + 1, offset, ret[id]);
-	    offset += read_sz;
-	}
+    ret[id] = zrocks_read_obj (id + 1, offset, rbuf[id] + offset, size);
+    cunit_zrocks_assert_int ("zrocks_read_obj", ret[id]);
+    if (ret[id])
+    printf ("Read error: ID %lu, offset %d, status: %x\n",
+                        id + 1, offset, ret[id]);
 
-	ret[id] = test_zrocks_check_buffer (id, 0, TEST_BUFFER_SZ);
+	ret[id] = test_zrocks_check_buffer (id, 0, size);
 	cunit_zrocks_assert_int ("zrocks_read_obj:check", ret[id]);
 	if (ret[id])
 	    printf ("Corruption: ID %lu, corrupted: %d bytes\n", id + 1, ret[id]);
